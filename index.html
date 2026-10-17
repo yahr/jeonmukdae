@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>전국먹자대회</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Do+Hyeon&display=swap" rel="stylesheet">
+<style>
+/* 레이아웃: 아케이드 캐비닛 한 화면. 메뉴 선택(격투게임 캐릭터 셀렉트) → 도장(다음 미션 · 실시간 랭킹 · 격파 등록) */
+:root{
+  --bg:#12102a; --panel:#1d1a3f; --panel2:#262253; --fg:#f5f0dc; --dim:#9b93c9;
+  --y:#ffd23f; --m:#ff4fa3; --c:#3ee8ff; --g:#5dff7a; --shadow:#07061a;
+  --px:"Press Start 2P",monospace; --ko:"Do Hyeon","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+#dojo>.hud .px{text-align:right;line-height:1.8}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ko);font-size:18px;line-height:1.35;
+  background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:24px 24px}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 2px,transparent 2px 4px)}
+.wrap{max-width:860px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.px{font-family:var(--px);font-size:11px;letter-spacing:.5px;text-transform:uppercase}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-family:var(--px);font-size:clamp(18px,4.5vw,30px);line-height:1.5;color:var(--y);text-shadow:4px 4px 0 var(--m)}
+h2{font-size:26px}
+.sub{color:var(--dim)}
+.blink{animation:blink 1s steps(2,end) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}.row{transition:none}}
+.panel{background:var(--panel);border:4px solid var(--fg);box-shadow:8px 8px 0 var(--shadow);padding:18px;min-width:0}
+.stack{display:grid;gap:22px}
+.hud{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.hud .px{color:var(--c)}
+.btn{font-family:var(--ko);font-size:18px;background:var(--y);color:#000;border:3px solid #000;box-shadow:4px 4px 0 #000;padding:8px 16px;cursor:pointer;line-height:1}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #000}
+.btn.sec{background:var(--c)}.btn.alt{background:var(--m);color:#fff}.btn.ghost{background:var(--panel2);color:var(--fg);border-color:var(--fg);box-shadow:4px 4px 0 var(--fg)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,.card:focus-visible{outline:3px dashed var(--g);outline-offset:3px}
+input[type=text],select{font-family:var(--ko);font-size:18px;background:var(--bg);color:var(--fg);border:3px solid var(--fg);padding:8px 10px;width:100%;min-width:0}
+select:invalid{color:var(--dim)}
+input[type=range]{width:100%;accent-color:var(--y)}
+label{display:grid;gap:4px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.card{background:var(--panel2);border:4px solid var(--fg);box-shadow:5px 5px 0 var(--shadow);padding:14px 10px;text-align:center;cursor:pointer;color:var(--fg);font-family:var(--ko);display:grid;gap:6px;justify-items:center}
+.card:hover{border-color:var(--y);transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--shadow)}
+.card .e{font-size:40px;line-height:1}
+.card .nm{font-size:22px}
+.card .px{color:var(--dim)}
+.custom{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.custom label{flex:1 1 220px}
+.row{display:grid;grid-template-columns:52px 1fr auto 72px;gap:12px;align-items:center;padding:10px 0;border-bottom:3px dashed var(--panel2);cursor:pointer;transition:background .3s}
+.row:hover{background:rgba(255,255,255,.04)}
+.row:last-child{border-bottom:0}
+.rank{font-family:var(--px);font-size:16px;text-align:center}
+.rank.r1{color:var(--y)}.rank.r2{color:var(--c)}.rank.r3{color:var(--m)}
+.row .nm{font-size:22px;min-width:0;overflow-wrap:anywhere}
+.row .meta{color:var(--dim);font-size:15px}
+.total{font-family:var(--px);font-size:15px;text-align:right;color:var(--g);font-variant-numeric:tabular-nums}
+.total small{display:block;font-size:8px;color:var(--dim);margin-top:4px}
+.delta{font-size:13px;margin-left:6px}
+.delta.up{color:var(--g)}.delta.down{color:var(--m)}
+.flash{animation:flash 1.2s ease-out}
+@keyframes flash{0%{background:rgba(255,210,63,.35)}100%{background:transparent}}
+.hex{display:block;max-width:100%}
+.empty{color:var(--dim);text-align:center;padding:26px 8px;border:3px dashed var(--dim)}
+.mission{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:3px dashed var(--panel2)}
+.mission:last-child{border-bottom:0}
+.mission .nm{font-size:21px}
+.mission .meta{color:var(--dim);font-size:15px}
+.votes{font-family:var(--px);font-size:12px;color:var(--c)}
+.next{background:#3a2d0a;border:4px solid var(--y);box-shadow:8px 8px 0 var(--shadow);padding:16px;display:grid;gap:10px}
+.next .nm{font-size:30px;color:var(--y)}
+.inline{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.inline label{flex:1 1 160px}
+.axes{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.axes label span{display:flex;justify-content:space-between}
+.axes .val{color:var(--y);font-family:var(--px);font-size:11px}
+.toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--y);color:#000;border:3px solid #000;box-shadow:4px 4px 0 #000;padding:10px 16px;z-index:20;max-width:90vw}
+dialog{background:var(--panel);color:var(--fg);border:4px solid var(--fg);box-shadow:10px 10px 0 var(--shadow);padding:20px;width:min(560px,92vw);max-height:90vh}
+dialog::backdrop{background:rgba(7,6,26,.8)}
+.detail{display:grid;gap:14px}
+.detail .top{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}
+.raters{color:var(--dim);font-size:15px}
+.who{display:inline-block;background:var(--panel2);border:2px solid var(--dim);padding:1px 6px;margin:2px 2px 0 0;font-size:14px}
+.tape{font-family:var(--px);font-size:10px;color:var(--bg);background:var(--y);padding:4px 8px;display:inline-block}
+footer{color:var(--dim);font-size:14px;text-align:center}
+@media (max-width:480px){.row{grid-template-columns:40px 1fr 60px}.row .total{grid-column:2/4;text-align:left}.hex.mini{width:48px;height:48px}}
+#hud-me{font-family:var(--px);font-size:11px;width:120px;padding:4px 6px;border-width:2px;color:var(--y)}
+/* 도발 스테이지: 격투게임 도전자 등장 컷신 */
+.stage{position:relative;overflow:hidden;background:#07061a;border:4px solid var(--m);box-shadow:8px 8px 0 var(--shadow);padding:18px;min-height:230px;display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center}
+.stage.shake{animation:shake .5s steps(2,end)}
+@keyframes shake{0%{transform:translate(3px,-2px)}25%{transform:translate(-4px,3px)}50%{transform:translate(2px,2px)}75%{transform:translate(-3px,-3px)}100%{transform:none}}
+.stage .flashbg{position:absolute;inset:0;background:var(--m);animation:flashbg .6s ease-out forwards;pointer-events:none}
+@keyframes flashbg{0%{opacity:.9}100%{opacity:0}}
+.stage .stripes{position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 22px,rgba(255,79,163,.08) 22px 44px);animation:stripes 1.2s linear infinite;pointer-events:none}
+@keyframes stripes{to{background-position:62px 0}}
+.bowl{position:relative;font-size:96px;line-height:1;text-align:center;animation:bob 1.4s ease-in-out infinite;filter:drop-shadow(0 0 14px rgba(255,210,63,.6))}
+@keyframes bob{50%{transform:translateY(-8px) rotate(-4deg)}}
+.bowl i{position:absolute;left:50%;bottom:85%;width:10px;height:10px;background:var(--fg);opacity:0;animation:steam 1.6s ease-out infinite}
+.bowl i:nth-child(2){margin-left:-22px;animation-delay:.5s}.bowl i:nth-child(3){margin-left:16px;animation-delay:1s}
+@keyframes steam{0%{opacity:0;transform:translateY(0) scale(.6)}30%{opacity:.9}100%{opacity:0;transform:translateY(-70px) scale(1.4)}}
+.vs{position:absolute;right:14px;top:10px;font-family:var(--px);font-size:34px;color:var(--y);text-shadow:4px 4px 0 var(--m);animation:vs .7s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes vs{0%{transform:scale(4);opacity:0}100%{transform:scale(1);opacity:1}}
+.taunt{position:relative;z-index:1;display:grid;gap:8px;min-width:0;animation:slidein .45s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes slidein{0%{transform:translateX(60px);opacity:0}100%{transform:none;opacity:1}}
+.taunt .nm{font-size:30px;color:var(--y);line-height:1.1;overflow-wrap:anywhere}
+.bubble{background:var(--fg);color:#000;border:3px solid #000;box-shadow:4px 4px 0 #000;padding:10px 12px;font-size:21px;position:relative;min-height:52px}
+.bubble::before{content:"";position:absolute;left:-14px;top:14px;border:8px solid transparent;border-right-color:#000;border-left:0}
+.bubble .cur{display:inline-block;width:10px;height:20px;background:#000;vertical-align:-3px;animation:blink .6s steps(2,end) infinite}
+.stage.has-shots{grid-template-columns:220px 1fr}
+.shots{position:relative;width:220px;height:165px;overflow:hidden;border:3px solid var(--fg);box-shadow:4px 4px 0 var(--shadow);background:#000}
+.shots img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;animation:kb 12s ease-in-out infinite}
+@keyframes kb{0%{opacity:0;transform:scale(1)}6%{opacity:1}25%{opacity:1;transform:scale(1.12) translate(-2%,-2%)}31%{opacity:0}100%{opacity:0}}
+.shots .shotn{position:absolute;right:6px;bottom:6px;font-family:var(--px);font-size:9px;background:#000c;color:var(--y);padding:3px 6px}
+@media (prefers-reduced-motion:reduce){.shots img{animation:none;opacity:1}.shots img:not(:first-child){display:none}}
+@media (max-width:560px){.stage.has-shots{grid-template-columns:1fr}.shots{width:100%;height:200px}}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pgrid img{width:100%;aspect-ratio:1;object-fit:cover;border:3px solid var(--fg);display:block}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.thumbs img{width:72px;height:72px;object-fit:cover;border:3px solid var(--fg);display:block}
+.thumbs .xs{position:absolute;top:-6px;right:-6px;width:22px;height:22px;background:var(--m);color:#fff;border:2px solid #000;font-size:11px;cursor:pointer;padding:0;line-height:1}
+.menus{display:grid;gap:4px;font-size:16px}
+.menus b{color:var(--y);font-family:var(--px);font-size:10px}
+.row .rthumb{width:52px;height:52px;object-fit:cover;border:3px solid var(--fg);background:var(--panel2)}
+.near{display:grid;gap:10px}
+.near .pl{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 12px;background:var(--panel2);border:3px solid var(--fg);cursor:pointer}
+.near .pl:hover,.near .pl.on{border-color:var(--m);background:#3a0e24}
+.near .pl .nm{font-size:21px}.near .pl .meta{color:var(--dim);font-size:15px}
+.near .pl .dist{font-family:var(--px);font-size:11px;color:var(--c);white-space:nowrap}
+.done{color:var(--g);font-family:var(--px);font-size:10px}
+.trophy{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;padding:6px 0}
+.trophy[data-proof]{cursor:pointer}.trophy[data-proof]:hover .meta{color:var(--y)}
+.trophy img,.trophy .noproof{width:64px;height:64px;object-fit:cover;border:3px solid var(--y);box-shadow:3px 3px 0 var(--shadow);image-rendering:auto}
+.trophy .noproof{display:grid;place-items:center;text-align:center;font-family:var(--px);font-size:8px;color:var(--dim);border-color:var(--dim)}
+/* 시즌 배너 */
+.season{position:relative;overflow:hidden;background:#3a0e24;border:4px solid var(--m);box-shadow:8px 8px 0 var(--shadow);padding:18px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
+.season>*{position:relative;z-index:1}
+.season .snm{font-size:34px;color:var(--y);line-height:1.1;margin:6px 0 4px}
+.season .meta{color:var(--dim);font-size:15px}
+.card.season-card{border-color:var(--m)}
+.card.season-card .px{color:var(--m)}
+@media (max-width:560px){.season{grid-template-columns:1fr}.season .stack{justify-items:start!important}}
+/* 캐릭터 */
+.char{display:grid;grid-template-columns:170px 1fr;gap:18px;align-items:center}
+.charav{display:grid;place-items:center;background:var(--panel2);border:4px solid var(--fg);padding:8px;min-height:170px}
+.charav svg,#hud-av svg,.lvlup svg{image-rendering:pixelated;shape-rendering:crispEdges}
+#hud-av svg{width:30px;height:40px;vertical-align:middle;margin-right:6px}
+.xpbar{height:16px;border:3px solid var(--fg);background:var(--bg);padding:2px}
+.xpbar div{height:100%;background:var(--g);transition:width .6s steps(12)}
+.god .xpbar div{background:linear-gradient(90deg,var(--y),#fff,var(--y))}
+.sw{display:flex;flex-wrap:wrap;gap:8px}
+.sw button{width:34px;height:34px;border:3px solid var(--fg);box-shadow:3px 3px 0 var(--shadow);cursor:pointer;padding:0}
+.sw button.on,.opt button.on{outline:3px solid var(--y);outline-offset:2px}
+.opt{display:flex;flex-wrap:wrap;gap:8px}
+.opt button{font-family:var(--ko);font-size:16px;background:var(--panel2);color:var(--fg);border:3px solid var(--fg);padding:6px 10px;cursor:pointer}
+.designer{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start}
+.lvlup{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(7,6,26,.88);text-align:center;cursor:pointer}
+.lvlup h2{font-family:var(--px);font-size:clamp(16px,4vw,28px);color:var(--y);text-shadow:4px 4px 0 var(--m);animation:vs .6s cubic-bezier(.2,1.6,.4,1) both}
+@media (max-width:560px){.char,.designer{grid-template-columns:1fr}.charav{min-height:0}}
+.cam{position:relative;background:#000;border:3px solid var(--fg);aspect-ratio:4/3;max-width:100%;display:grid;place-items:center;overflow:hidden}
+.cam video,.cam img{width:100%;height:100%;object-fit:cover}
+.camover{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--y);background:rgba(7,6,26,.7)}
+@media (prefers-reduced-motion:reduce){.stage.shake,.bowl,.bowl i,.vs,.taunt,.stage .stripes,.stage .flashbg{animation:none}.stage .flashbg{opacity:0}}
+@media (max-width:560px){.stage{grid-template-columns:1fr}.bowl{font-size:72px}.vs{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap stack">
+  <header class="hud">
+    <div>
+      <div class="px" id="hud-tag">INSERT COIN · #전먹대 · 전국 먹자 도장깨기</div>
+      <h1 id="hud-title">전국먹자대회</h1>
+    </div>
+    <label class="px" id="hud-right" style="display:flex;gap:8px;align-items:center"><span id="hud-av"></span>PLAYER <input type="text" id="hud-me" maxlength="10" placeholder="이름 입력"></label>
+  </header>
+
+  <!-- 메뉴 선택 -->
+  <section id="select" class="stack">
+    <div class="panel char" id="char-panel">
+      <div class="charav" id="char-av"></div>
+      <div class="stack" style="gap:10px;min-width:0">
+        <div class="hud"><h2>MY CHARACTER</h2><button class="btn sec" type="button" id="char-edit">🎨 꾸미기</button></div>
+        <div><span class="tape" id="char-lvl">견습 식객</span> <span class="px sub" id="char-xp">XP 0</span></div>
+        <div class="xpbar"><div id="char-bar"></div></div>
+        <div class="sub" id="char-src">격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.</div>
+      </div>
+    </div>
+    <div id="season-banner"></div>
+    <div class="panel stack">
+      <div class="hud"><h2>SELECT YOUR 부문</h2><span class="px blink">▶ PRESS START</span></div>
+      <p class="sub">전국먹자대회, 줄여서 <b>전먹대</b>. 매달 한 종목씩 전국 가게를 도장깨기하고, 6각 능력치로 평가하고, 도발 미션은 투표로 정해요. 태권도 고르듯 부문을 골라요.</p>
+      <div class="grid" id="presets"></div>
+      <div id="customs-wrap" hidden>
+        <div class="px sub" style="margin-bottom:8px">다른 플레이어가 만든 도장</div>
+        <div class="grid" id="customs"></div>
+      </div>
+      <form class="custom" id="custom-form">
+        <label><span class="px sub">새 메뉴 도장 열기</span><input type="text" id="custom-name" maxlength="12" placeholder="예: 평양냉면, 제육볶음" required></label>
+        <button class="btn sec" type="submit">도장 개설</button>
+      </form>
+      <div class="sub" id="login-note">기록은 이 브라우저에 저장돼요. 탭을 여러 개 열면 순위가 실시간으로 같이 움직여요.</div>
+    </div>
+  </section>
+
+  <!-- 도장 -->
+  <section id="dojo" class="stack" hidden>
+    <div class="hud">
+      <button class="btn ghost" id="back" type="button">◀ 메뉴 선택</button>
+      <div class="px"><span id="stat-spots">0</span> 격파 · <span id="stat-players">0</span> 플레이어 · <span id="stat-scores">0</span> 평가 · <span id="stat-lvl" style="color:var(--y)"></span></div>
+    </div>
+
+    <div class="panel stack" id="near-wrap">
+      <div class="hud"><h2>NEARBY CHALLENGERS</h2><span class="px sub">내 주변 도전자들</span></div>
+      <form class="inline" id="near-form">
+        <button class="btn sec" type="button" id="gps">📍 GPS로 내 주변 찾기</button>
+        <label><span class="px sub">또는 동네로 찾기</span><input type="text" id="near-area" maxlength="20" placeholder="예: 마포, 수원 영통"></label>
+        <button class="btn ghost" type="submit">찾기</button>
+      </form>
+      <div id="stage" hidden></div>
+      <div id="near" class="sub">GPS 버튼을 누르면 반경 1.5km 안의 가게들이 줄을 서요. 한 놈씩 도발해 올 거예요.</div>
+    </div>
+
+    <div class="stack" id="next-wrap">
+      <div class="px" style="color:var(--m)">★ NEXT MISSION · 투표 1위 도발</div>
+      <div id="next"></div>
+    </div>
+
+    <div class="panel stack">
+      <div class="hud"><h2>RANKING</h2><button class="px sub" id="rank-scope" type="button" style="background:none;border:0;cursor:pointer;color:var(--dim)">6각 합계 · 실시간</button></div>
+      <div id="ranking"></div>
+    </div>
+
+    <div class="panel stack">
+      <div class="hud"><h2>MISSION BOARD</h2><span class="px sub">도전자들의 도발 · 투표 1위가 다음 미션</span></div>
+      <form class="stack" id="mission-form">
+        <div class="inline">
+          <label><span class="px sub">매장 (필수)</span><select id="m-place" required><option value="">— 매장을 골라야 도발 가능 —</option></select></label>
+          <label><span class="px sub">목록에 없으면 검색</span><input type="text" id="m-search" maxlength="30" placeholder="예: 합정순대국"></label>
+          <button class="btn ghost" type="button" id="m-find">검색</button>
+        </div>
+        <div class="inline">
+          <label><span class="px sub">도발 미션</span><input type="text" id="m-title" maxlength="40" placeholder="예: 혼자 참이슬 오리지널(빨뚜) 2병 먹기" required></label>
+          <button class="btn alt" type="submit">🗯 도발하기</button>
+        </div>
+      </form>
+      <div id="missions"></div>
+      <div id="cleared"></div>
+    </div>
+
+    <div class="panel stack">
+      <div class="hud"><h2>격파 등록</h2><span class="px sub">다녀온 가게 바로 기록</span></div>
+      <form class="stack" id="spot-form">
+        <div class="inline">
+          <label><span class="px sub">가게 이름</span><input type="text" id="s-name" maxlength="30" required></label>
+          <label><span class="px sub">지역</span><input type="text" id="s-region" maxlength="20" required></label>
+        </div>
+        <div class="axes" id="s-axes"></div>
+        <div class="inline" style="align-items:center"><button class="btn sec" type="button" id="s-shoot">📸 음식 촬영 (0/3)</button><span class="sub">첨부는 안 돼요. 그 자리에서 찍은 것만.</span></div>
+        <div class="thumbs" id="s-prev" hidden></div>
+        <div><button class="btn" type="submit">격파 완료!</button></div>
+      </form>
+    </div>
+
+    <footer>순위는 평가한 사람들의 6각 합계 평균(최대 30)으로 매겨요. 평가는 1인 1표, 다시 매기면 덮어써요. 도발 미션은 투표 1위가 다음 미션이 되고, 격파하면 트로피에 남아요.</footer>
+  </section>
+</div>
+
+<dialog id="dlg"><div class="detail" id="detail"></div></dialog>
+<dialog id="camdlg"><div class="detail" id="camui"></div></dialog>
+
+<script>
+const PRESETS=[
+  {id:'sundaeguk',name:'순대국',e:'🍲',axes:['국물','순대','고기','깍두기','가성비','노포감']},
+  {id:'dwaejigukbap',name:'돼지국밥',e:'🥣',axes:['국물','고기','밥','부추양념','가성비','노포감']},
+  {id:'naengmyeon',name:'냉면',e:'🍜',axes:['육수','면발','고명','겨자식초','가성비','분위기']},
+  {id:'kalguksu',name:'칼국수',e:'🍝',axes:['국물','면발','김치','양','가성비','분위기']},
+  {id:'donkatsu',name:'돈까스',e:'🍖',axes:['튀김옷','두께','소스','밥샐러드','가성비','분위기']},
+  {id:'jjajangmyeon',name:'짜장면',e:'🥡',axes:['춘장','면발','재료','탕수육','가성비','분위기']},
+  {id:'pyeongyang',name:'평양냉면',e:'🥢',axes:['육수','메밀면','고명','온도','가성비','노포감']},
+];
+/* 시즌: 한 달에 메뉴 하나. 여기만 고치면 시즌이 바뀐다. 날짜는 KST 기준 포함 범위 */
+const SEASONS=[
+  {n:1,menu:'sundaeguk',from:'2026-10-01',to:'2026-10-31'},
+  {n:2,menu:'pyeongyang',from:'2026-11-01',to:'2026-11-30'},
+];
+const today=()=>new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
+const curSeason=()=>SEASONS.find(s=>today()>=s.from&&today()<=s.to)||null;
+const nextSeason=()=>SEASONS.find(s=>s.from>today())||null;
+const seasonOf=id=>{const s=curSeason();return s&&s.menu===id?s:null};
+const dday=s=>Math.max(0,Math.ceil((new Date(s.to+'T23:59:59+09:00')-Date.now())/864e5));
+const monthTxt=s=>`${+s.from.slice(5,7)}월`;
+/* 문서가 시즌에 속하나: season 필드가 같거나, 필드 없는 옛 문서는 등록 시각이 시즌 기간 안이면 */
+const inSeason=(d,s)=>d.season===s.n||(!d.season&&d.t>=new Date(s.from+'T00:00:00+09:00')&&d.t<=new Date(s.to+'T23:59:59+09:00'));
+let allTime=false; // 랭킹: 시즌만 / 역대 전체 토글
+const GENERIC=['맛','양','재료','사이드','가성비','분위기'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const slug=s=>{let h=7;for(const c of s)h=(h*31+c.codePointAt(0))>>>0;return 'c_'+h.toString(36)};
+
+let db=null,user=null,uid=null,menu=null,spots=[],scores=[],missions=[],cleared=[],customs=[],unsubs=[],menusUnsub=null,prevRank={};
+
+/* ---------- 6각 ---------- */
+function hex(vals,size,big){
+  const c=size/2,r=size/2-(big?44:6);
+  const pt=(i,v)=>{const a=-Math.PI/2+i*Math.PI/3;return [c+Math.cos(a)*r*v/5,c+Math.sin(a)*r*v/5]};
+  const ring=k=>[0,1,2,3,4,5].map(i=>pt(i,k).join(',')).join(' ');
+  let g='';for(let k=1;k<=5;k++)g+=`<polygon points="${ring(k)}" fill="none" stroke="var(--dim)" stroke-opacity="${k===5?.9:.3}" stroke-width="${k===5?2:1}"/>`;
+  let labels='';
+  if(big)menu.axes.forEach((ax,i)=>{const [x,y]=pt(i,6.6);labels+=`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="var(--fg)" font-family="Do Hyeon,sans-serif">${esc(ax)} <tspan fill="var(--y)">${(vals[i]||0).toFixed(1)}</tspan></text>`});
+  const poly=[0,1,2,3,4,5].map(i=>pt(i,vals[i]||0).join(',')).join(' ');
+  return `<svg class="hex ${big?'big':'mini'}" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">${g}<polygon points="${poly}" fill="var(--c)" fill-opacity=".35" stroke="var(--c)" stroke-width="${big?3:2}"/>${labels}</svg>`;
+}
+function axisInputs(prefix,vals){
+  return menu.axes.map((ax,i)=>`<label><span>${esc(ax)}<span class="val" id="${prefix}-v${i}">${vals?vals[i]:3}</span></span><input type="range" id="${prefix}-a${i}" min="1" max="5" step="1" value="${vals?vals[i]:3}" oninput="document.getElementById('${prefix}-v${i}').textContent=this.value"></label>`).join('');
+}
+const readAxes=prefix=>menu.axes.map((_,i)=>+document.getElementById(`${prefix}-a${i}`).value);
+
+/* ---------- 메뉴 선택 ---------- */
+function renderSeason(){
+  const s=curSeason(),nx=nextSeason(),P=id=>PRESETS.find(p=>p.id===id);
+  $('#season-banner').innerHTML=s?`<div class="season"><div class="stripes"></div>
+      <div><span class="tape">S${s.n} · ${monthTxt(s)}</span><div class="snm">제${s.n}회 ${P(s.menu).e} ${esc(P(s.menu).name)} 부문</div><div class="meta">이번 달 공식 부문 · 종료까지 <b class="px" style="color:var(--y)">D-${dday(s)}</b> · #전먹대 #${esc(P(s.menu).name)}도장깨기</div></div>
+      <div class="stack" style="gap:8px;justify-items:end"><button class="btn" type="button" data-id="${s.menu}">▶ 시즌 도장 입장</button>${nx?`<div class="meta">NEXT · ${monthTxt(nx)} ${P(nx.menu).e} ${esc(P(nx.menu).name)} <span class="px blink" style="color:var(--c)">COMING SOON</span></div>`:''}</div></div>`
+    :nx?`<div class="season"><div><span class="tape">OFF SEASON</span><div class="snm">다음 회 준비 중</div><div class="meta">NEXT · ${monthTxt(nx)} ${P(nx.menu).e} ${esc(P(nx.menu).name)} (${nx.from}부터)</div></div></div>`:'';
+}
+function renderSelect(){
+  renderSeason();const s=curSeason(),nx=nextSeason();
+  $('#presets').innerHTML=PRESETS.map(p=>{const tag=s?.menu===p.id?`SEASON ${s.n}`:nx?.menu===p.id?'NEXT SEASON':'상시 도장';
+    return `<button class="card ${s?.menu===p.id?'season-card':''}" type="button" data-id="${p.id}"><span class="e">${p.e}</span><span class="nm">${esc(p.name)}</span><span class="px">${tag}</span></button>`}).join('');
+  const others=customs.filter(c=>!PRESETS.some(p=>p.id===c.id));
+  $('#customs-wrap').hidden=!others.length;
+  $('#customs').innerHTML=others.map(c=>`<button class="card" type="button" data-id="${esc(c.id)}"><span class="e">${esc(c.e||'🍽️')}</span><span class="nm">${esc(c.name)}</span><span class="px">CUSTOM</span></button>`).join('');
+}
+document.addEventListener('click',e=>{const b=e.target.closest('.card[data-id]');if(b)enter(b.dataset.id)});
+$('#custom-form').addEventListener('submit',e=>{e.preventDefault();const n=$('#custom-name').value.trim();if(n)enter(slug(n),n)});
+$('#rank-scope').addEventListener('click',()=>{if(seasonOf(menu?.id)){allTime=!allTime;render()}});
+$('#back').addEventListener('click',()=>{unsubs.forEach(u=>u());unsubs=[];menu=null;clearInterval(stageTimer);clearInterval(typeTimer);places=[];stageIdx=-1;$('#stage').hidden=true;$('#near').className='sub';$('#near').textContent='GPS 버튼을 누르면 반경 1.5km 안의 가게들이 줄을 서요. 한 놈씩 도발해 올 거예요.';history.replaceState(null,'','#');$('#dojo').hidden=true;$('#select').hidden=false;$('#hud-title').textContent='전국먹자대회';$('#hud-tag').textContent='INSERT COIN · #전먹대 · 전국 먹자 도장깨기';renderSelect()});
+
+async function enter(id,name){
+  const p=PRESETS.find(x=>x.id===id);
+  menu={id,name:p?p.name:(name||'???'),e:p?p.e:'🍽️',axes:p?p.axes:GENERIC};
+  if(db){
+    const ref=db.doc('menus/'+id);
+    try{
+      const snap=await ref.get();
+      if(snap.exists){const d=snap.data();menu.name=d.name||menu.name;menu.axes=Array.isArray(d.axes)&&d.axes.length===6?d.axes:menu.axes;menu.e=d.e||menu.e}
+      else if(uid)await ref.set({name:menu.name,e:menu.e,axes:menu.axes,t:Date.now()});
+    }catch(err){console.warn(err)}
+  }
+  history.replaceState(null,'',`#${id}`);
+  const sn=seasonOf(id);allTime=false;
+  $('#hud-title').textContent=sn?`제${sn.n}회 ${menu.name} 부문`:`${menu.name} 부문`;
+  $('#hud-tag').textContent=sn?`전국먹자대회 · S${sn.n} ${monthTxt(sn)} · D-${dday(sn)} · #전먹대`:'전국먹자대회 · 상시 부문 · #전먹대';
+  $('#s-axes').innerHTML=axisInputs('s');
+  $('#select').hidden=true;$('#dojo').hidden=false;
+  spots=[];scores=[];missions=[];cleared=[];prevRank={};
+  subscribe();render();
+}
+
+function subscribe(){
+  unsubs.forEach(u=>u());unsubs=[];
+  if(!db)return;
+  const base='menus/'+menu.id,onErr=e=>console.warn('db',e);
+  unsubs.push(db.collection(base+'/spots').onSnapshot(s=>{spots=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr));
+  unsubs.push(db.collection(base+'/scores').onSnapshot(s=>{scores=s.docs.map(d=>d.data());render()},onErr));
+  unsubs.push(db.collection(base+'/missions').where('done','==',false).onSnapshot(s=>{missions=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr));
+  unsubs.push(db.collection(base+'/missions').where('done','==',true).onSnapshot(s=>{cleared=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr));
+}
+
+/* ---------- 도장 렌더 ---------- */
+function ranked(){
+  const sn=seasonOf(menu.id);const pool=sn&&!allTime?spots.filter(s=>inSeason(s,sn)):spots;
+  return pool.map(sp=>{
+    const ss=scores.filter(x=>x.spot===sp.id&&Array.isArray(x.s));const n=ss.length;
+    const avg=menu.axes.map((_,i)=>n?ss.reduce((a,x)=>a+(+x.s[i]||0),0)/n:0);
+    return {...sp,n,avg,total:avg.reduce((a,b)=>a+b,0),mine:ss.find(x=>x.by===uid),raters:ss.map(x=>x.by)};
+  }).sort((a,b)=>b.total-a.total||b.n-a.n||(a.t||0)-(b.t||0));
+}
+function render(){
+  if(!menu)return;
+  const list=ranked();
+  const players=new Set([...scores.map(x=>x.by),...missions.map(m=>m.by),...spots.map(s=>s.by)].filter(Boolean));
+  $('#stat-spots').textContent=spots.length;$('#stat-players').textContent=players.size;$('#stat-scores').textContent=scores.length;
+
+  $('#ranking').innerHTML=list.length?list.map((sp,i)=>{
+    const prev=prevRank[sp.id];const d=prev==null||prev===i+1?'':prev>i+1?`<span class="delta up">▲${prev-i-1}</span>`:`<span class="delta down">▼${i+1-prev}</span>`;
+    const up=sp.photos?.[0]||scores.find(x=>x.spot===sp.id&&x.photos?.length)?.photos[0];const pc=placeCache[sp.place?.id];const rt=up||(pc?thumb(pc.main||pc.photos[0]?.url,'C320x320'):'');
+    if(sp.place?.id&&pc===undefined&&!placeReq[sp.place.id])getPlaceInfo(sp.place.id).then(()=>render());
+    return `<div class="row ${d?'flash':''}" data-spot="${sp.id}" tabindex="0" role="button">
+      <div class="rank r${i+1}">${i+1}</div>
+      <div style="display:flex;gap:10px;align-items:center;min-width:0">${rt?`<img class="rthumb" src="${rt}" alt="" referrerpolicy="no-referrer" onerror="this.onerror=null;this.remove()">`:''}<div style="min-width:0"><div class="nm">${esc(sp.name)}${d}</div><div class="meta">${esc(sp.region||'')} · 평가 ${sp.n}명${sp.mine?' · 내 평가 있음':''}</div></div></div>
+      ${hex(sp.avg,64,false)}
+      <div class="total">${sp.total.toFixed(1)}<small>/30</small></div></div>`}).join('')
+    :`<div class="empty">아직 격파한 가게가 없어요.<br>아래 <b>격파 등록</b>으로 첫 깃발을 꽂아요!</div>`;
+  prevRank=Object.fromEntries(list.map((sp,i)=>[sp.id,i+1]));
+
+  const sn0=seasonOf(menu.id);
+  $('#rank-scope').textContent=sn0?(allTime?'역대 전체 · 시즌만 보기':`SEASON ${sn0.n} · 역대 전체 보기`):'6각 합계 · 실시간';
+  const ms=(sn0?missions.filter(m=>inSeason(m,sn0)):missions).map(m=>({...m,v:Object.values(m.votes||{}).filter(Boolean).length,my:!!(m.votes||{})[uid]})).sort((a,b)=>b.v-a.v||(a.t||0)-(b.t||0));
+  const top=ms[0];
+  $('#next').innerHTML=top?`<div class="next"><span class="tape">NEXT MISSION</span><div class="meta">🗯 <span data-uid="${esc(top.by)}">…</span>의 도발</div><div class="nm">“${esc(top.title)}”</div><div class="meta">${top.region?esc(top.region)+' · ':''}<span class="votes">${top.v} VOTES</span></div>
+      <div class="inline"><button class="btn sec" type="button" data-vote="${top.id}">${top.my?'투표 취소':'이거 보고 싶다 +1'}</button><button class="btn" type="button" data-clear="${top.id}">⚔ 내가 격파했다</button></div></div>`
+    :`<div class="empty">아직 도발이 없어요. 아래에서 다른 도전자들을 도발해 봐요.</div>`;
+  $('#missions').innerHTML=ms.length?ms.map((m,i)=>`<div class="mission"><div><div class="meta">🗯 <span data-uid="${esc(m.by)}">…</span>의 도발${i===0?' · 🎯 현재 1위':''}</div><div class="nm">“${esc(m.title)}”</div>${m.region?`<div class="meta">📍 ${esc(m.region)}</div>`:''}</div>
+      <div class="inline" style="align-items:center"><span class="votes">${m.v}표</span><button class="btn ${m.my?'ghost':'sec'}" type="button" data-vote="${m.id}">${m.my?'취소':'+1'}</button><button class="btn ghost" type="button" data-clear="${m.id}">격파</button></div></div>`).join('')
+    :`<div class="empty">올라온 도발 없음</div>`;
+  const cl=(sn0?cleared.filter(m=>inSeason(m,sn0)):cleared).sort((a,b)=>(b.clearedAt||0)-(a.clearedAt||0)).slice(0,5);
+  $('#cleared').innerHTML=cl.length?`<div class="px sub" style="margin:14px 0 6px">🏆 격파된 도발</div>`+cl.map(m=>`<div class="trophy" ${m.proof?`data-proof="${m.id}" role="button" tabindex="0"`:''}>${m.proof?`<img src="${m.proof}" alt="">`:`<div class="noproof">NO<br>PHOTO</div>`}<div class="meta"><span data-uid="${esc(m.clearedBy||'')}">…</span> ▶ <span data-uid="${esc(m.by)}">…</span>의 “${esc(m.title)}” 격파${m.proof?' · 인증샷 보기':''}</div></div>`).join(''):'';
+
+  renderPlaceSelect();resolveNames();scheduleXP();
+}
+async function resolveNames(){
+  const els=[...document.querySelectorAll('[data-uid]')];if(!els.length)return;
+  const ids=[...new Set(els.map(e=>e.dataset.uid))];
+  const ps=user?await user.profiles(ids):{};
+  els.forEach(e=>{const p=ps[e.dataset.uid];e.textContent=p?.isMe?'나':(p?.name||'익명 플레이어')});
+}
+
+/* ---------- 쓰기 ---------- */
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.append(t);setTimeout(()=>t.remove(),2600)}
+function guard(){if(!db||!uid){toast('로그인한 참여자만 기록할 수 있어요');return false}return true}
+const onWriteErr=e=>{console.warn(e);toast(e?.code==='quota'?'저장 공간이 꽉 찼어요. 오래된 인증샷을 지워야 해요':e?.code==='invalid_argument'?'쓰기 권한이 없어요 (뷰어 권한)':'저장 실패, 잠시 후 다시')};
+
+$('#spot-form').addEventListener('submit',async e=>{
+  e.preventDefault();if(!guard())return;
+  const name=$('#s-name').value.trim(),region=$('#s-region').value.trim();if(!name)return;
+  try{
+    const place=pickedPlace&&pickedPlace.place_name===name?{id:pickedPlace.id,url:pickedPlace.place_url,x:+pickedPlace.x,y:+pickedPlace.y,addr:pickedPlace.road_address_name||pickedPlace.address_name||''}:null;
+    const sn=seasonOf(menu.id);const photos=[...sShots];
+    const ref=await db.collection(`menus/${menu.id}/spots`).add({name,region,by:uid,t:Date.now(),...(place?{place}:{}),...(sn?{season:sn.n}:{}),...(photos.length?{photos}:{})});
+    await db.doc(`menus/${menu.id}/scores/${ref.id}__${uid}`).set({spot:ref.id,by:uid,s:readAxes('s'),t:Date.now(),...(photos.length?{photos}:{})});
+    e.target.reset();$('#s-axes').innerHTML=axisInputs('s');sShots.length=0;drawSShots();pickedPlace=null;if(places.length)renderNear();toast(`${name} 격파! 랭킹에 올라갔어요`);
+  }catch(err){onWriteErr(err)}
+});
+/* 매장 선택: 내 주변 도전자 + 격파한 가게 + 검색 결과. 자유 입력 없음 */
+let searchPlaces=[];
+const placeOf=p=>({id:String(p.id),name:p.place_name,addr:p.road_address_name||p.address_name||'',url:p.place_url||'',x:+p.x||0,y:+p.y||0});
+function renderPlaceSelect(){
+  const sel=$('#m-place');if(!sel)return;const cur=sel.value;
+  const seen=new Set();const opt=(v,label)=>{if(seen.has(v))return'';seen.add(v);return `<option value="${esc(v)}">${esc(label)}</option>`};
+  const groups=[['🔍 검색 결과',searchPlaces.map(p=>opt('k:'+p.id,`${p.place_name} · ${short(p.address_name)}`))],
+    ['📍 내 주변 도전자',places.map(p=>opt('k:'+p.id,`${p.place_name} · ${distTxt(p.distance)||short(p.address_name)}`))],
+    ['✔ 격파한 가게',spots.map(s=>opt(s.place?'k:'+s.place.id:'s:'+s.id,`${s.name} · ${s.region||''}`))]];
+  sel.innerHTML='<option value="">— 매장을 골라야 도발 가능 —</option>'+groups.filter(([,o])=>o.join('')).map(([l,o])=>`<optgroup label="${l}">${o.join('')}</optgroup>`).join('');
+  sel.value=cur;if(sel.value!==cur)sel.value='';
+}
+function selectedPlace(){
+  const v=$('#m-place').value;if(!v)return null;
+  if(v.startsWith('k:')){const id=v.slice(2);const p=[...searchPlaces,...places].find(x=>String(x.id)===id);if(p)return placeOf(p);const s=spots.find(x=>x.place?.id===id);return s?s.place:null}
+  const s=spots.find(x=>x.id===v.slice(2));return s?{id:'s:'+s.id,name:s.name,addr:s.region||'',url:'',x:0,y:0}:null;
+}
+$('#m-find').addEventListener('click',async()=>{
+  const q=$('#m-search').value.trim();if(!q)return;$('#m-find').disabled=true;
+  try{const r=await fetch(API+'/api/places?'+new URLSearchParams({q:`${q} ${menu.name}`,size:10}));const j=await r.json();searchPlaces=Array.isArray(j.documents)?j.documents:[];
+    renderPlaceSelect();if(searchPlaces.length){$('#m-place').value='k:'+searchPlaces[0].id;toast(`${searchPlaces.length}곳 찾음. 매장에서 골라요`)}else toast('못 찾았어요. 다른 이름으로')}
+  catch(err){toast('검색 실패: '+err.message)}finally{$('#m-find').disabled=false}
+});
+$('#mission-form').addEventListener('submit',async e=>{
+  e.preventDefault();if(!guard())return;
+  const title=$('#m-title').value.trim(),place=selectedPlace();if(!title)return;
+  if(!place){toast('매장을 골라야 도발할 수 있어요');$('#m-place').focus();return}
+  const sn=seasonOf(menu.id);
+  try{await db.collection(`menus/${menu.id}/missions`).add({title,place,region:place.name,by:uid,votes:{[uid]:true},done:false,t:Date.now(),...(sn?{season:sn.n}:{})});$('#m-title').value='';toast(`${place.name}에 도발 걸었어요. 투표를 모아요`)}catch(err){onWriteErr(err)}
+});
+document.addEventListener('click',async e=>{
+  const v=e.target.closest('[data-vote]'),c=e.target.closest('[data-clear]'),r=e.target.closest('.row[data-spot]');
+  if(v){if(!guard())return;const m=missions.find(x=>x.id===v.dataset.vote);if(!m)return;
+    try{await db.doc(`menus/${menu.id}/missions/${m.id}`).update({votes:{[uid]:!(m.votes||{})[uid]}})}catch(err){onWriteErr(err)}}
+  if(c){if(!guard())return;const m=missions.find(x=>x.id===c.dataset.clear);if(m)openProof(m)}
+  const pv=e.target.closest('[data-proof]');if(pv){const m=cleared.find(x=>x.id===pv.dataset.proof);if(m?.proof)openProofView(m)}
+  if(r)openDetail(r.dataset.spot);
+});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList?.contains('row'))openDetail(e.target.dataset.spot)});
+
+/* ---------- 인증샷: 격파 시 필수. ponytail: dataURL을 localStorage에 넣음(720px jpeg ≈ 100KB, 수십 장이 한계) → 진짜 저장소 붙이면 파일 업로드로 ---------- */
+let cam=null;
+const stopCam=()=>{cam?.getTracks().forEach(t=>t.stop());cam=null};
+$('#dlg').addEventListener('close',stopCam);
+function openProof(m){
+  let proof=null;
+  $('#detail').innerHTML=`<div class="top"><div><span class="tape">PROOF REQUIRED</span><h2 style="margin-top:8px">그 자리에서 찍어야 격파</h2><div class="meta sub">“${esc(m.title)}”${m.region?' · 📍 '+esc(m.region):''}</div></div><button class="btn ghost" type="button" id="dlg-x">✕</button></div>
+    <div class="cam"><video id="cam-view" autoplay playsinline muted></video><img id="proof-prev" alt="인증샷" hidden><div class="camover" id="cam-msg">카메라 켜는 중…</div></div>
+    <form class="inline" id="proof-form" style="align-items:center"><button class="btn sec" type="button" id="shutter" disabled>📸 찰칵</button><button class="btn ghost" type="button" id="retake" hidden>↺ 다시 찍기</button><button class="btn" type="submit" id="proof-ok" disabled>⚔ 인증하고 격파</button></form>`;
+  $('#dlg-x').onclick=()=>$('#dlg').close();
+  const v=$('#cam-view'),prev=$('#proof-prev'),msg=$('#cam-msg');
+  (async()=>{
+    if(!navigator.mediaDevices?.getUserMedia){msg.textContent='이 브라우저는 카메라를 못 써요. 격파는 폰에서.';return}
+    try{cam=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280}},audio:false});v.srcObject=cam;msg.hidden=true;$('#shutter').disabled=false}
+    catch(err){msg.textContent=err.name==='NotAllowedError'?'카메라 권한을 허용해야 격파할 수 있어요.':'카메라를 못 찾았어요. 격파는 카메라 있는 기기에서.'}
+  })();
+  $('#shutter').onclick=()=>{
+    const r=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight));const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*r);c.height=Math.round(v.videoHeight*r);
+    c.getContext('2d').drawImage(v,0,0,c.width,c.height);proof=c.toDataURL('image/jpeg',.75);
+    prev.src=proof;prev.hidden=false;v.hidden=true;$('#shutter').hidden=true;$('#retake').hidden=false;$('#proof-ok').disabled=false;
+  };
+  $('#retake').onclick=()=>{proof=null;prev.hidden=true;v.hidden=false;$('#shutter').hidden=false;$('#retake').hidden=true;$('#proof-ok').disabled=true};
+  $('#proof-form').onsubmit=async e=>{e.preventDefault();if(!proof)return toast('먼저 찍어야 해요');
+    try{await db.doc(`menus/${menu.id}/missions/${m.id}`).update({done:true,clearedBy:uid,clearedAt:Date.now(),proof});$('#dlg').close();toast(`도발 격파! “${m.title}”`);
+      if(m.place){pickedPlace={id:m.place.id,place_name:m.place.name,place_url:m.place.url,x:m.place.x,y:m.place.y,road_address_name:m.place.addr,address_name:m.place.addr};$('#s-name').value=m.place.name;$('#s-region').value=short(m.place.addr);$('#spot-form').scrollIntoView({behavior:'smooth',block:'start'})}}
+    catch(err){onWriteErr(err)}};
+  $('#dlg').showModal();
+}
+function openProofView(m){
+  $('#detail').innerHTML=`<div class="top"><div><span class="tape">PROOF</span><h2 style="margin-top:8px">“${esc(m.title)}”</h2><div class="meta sub"><span data-uid="${esc(m.clearedBy||'')}">…</span>의 격파 인증 · ${new Date(m.clearedAt||0).toLocaleDateString('ko-KR')}</div></div><button class="btn ghost" type="button" id="dlg-x">✕</button></div>
+    <img src="${m.proof}" alt="격파 인증샷" style="max-height:70vh;max-width:100%;object-fit:contain;border:3px solid var(--fg);justify-self:center">`;
+  $('#dlg-x').onclick=()=>$('#dlg').close();$('#dlg').showModal();resolveNames();
+}
+function openDetail(sid){
+  const sp=ranked().find(x=>x.id===sid)||spots.filter(s=>s.id===sid).map(s=>({...s,n:0,avg:[0,0,0,0,0,0],total:0,raters:[]}))[0]||{id:sid,name:'새 가게',region:'',n:0,avg:[0,0,0,0,0,0],total:0,raters:[]};
+  const mine=sp.mine?.s;
+  const userPhotos=[...(sp.photos||[]),...scores.filter(x=>x.spot===sid).flatMap(x=>x.photos||[])].filter((u,i,a)=>a.indexOf(u)===i);
+  $('#detail').innerHTML=`<div class="top"><div><span class="tape">STAGE DATA</span><h2 style="margin-top:8px">${esc(sp.name)}</h2><div class="meta sub">${esc(sp.region||'')} · 평가 ${sp.n}명 · 합계 <b style="color:var(--g)">${sp.total.toFixed(1)}</b>/30</div></div><button class="btn ghost" type="button" id="dlg-x">✕</button></div>
+    <div id="place-info"></div>
+    ${userPhotos.length?`<div><div class="px sub" style="margin-bottom:6px">📷 플레이어 인증 음식 사진</div><div class="pgrid">${userPhotos.slice(0,6).map(u=>`<img src="${u}" alt="">`).join('')}</div></div>`:''}
+    <div style="display:flex;justify-content:center">${hex(sp.avg,300,true)}</div>
+    <div class="raters">평가한 플레이어: ${sp.raters.length?sp.raters.map(id=>`<span class="who" data-uid="${esc(id)}">…</span>`).join(''):'아직 없음'}</div>
+    <form class="stack" id="rate-form"><div class="px sub">${mine?'내 평가 수정':'내 6각 평가 남기기'}</div><div class="axes">${axisInputs('r',mine)}</div>
+      <div class="inline" style="align-items:center"><button class="btn sec" type="button" id="r-shoot">📸 음식 촬영 (0/2)</button><span class="sub">첨부 불가 · 촬영만</span></div><div class="thumbs" id="r-prev" hidden></div>
+      <div><button class="btn" type="submit">${mine?'평가 덮어쓰기':'평가 저장'}</button></div></form>`;
+  $('#dlg-x').onclick=()=>$('#dlg').close();const rShots=[...(sp.mine?.photos||[])];shootWidget($('#r-shoot'),$('#r-prev'),rShots,2,'평가 인증 음식 촬영');
+  $('#rate-form').onsubmit=async e=>{e.preventDefault();if(!guard())return;
+    try{const photos=[...rShots];const keep=[];
+      await db.doc(`menus/${menu.id}/scores/${sid}__${uid}`).set({spot:sid,by:uid,s:readAxes('r'),t:Date.now(),...((photos.length||keep.length)?{photos:photos.length?photos:keep}:{})});toast('평가 저장. 순위 반영됐어요');$('#dlg').close()}catch(err){onWriteErr(err)}};
+  $('#dlg').showModal();resolveNames();
+  if(sp.place?.id)getPlaceInfo(sp.place.id).then(info=>{if(!info||!$('#place-info'))return;
+    const ph=info.photos.slice(0,6).map(x=>x.url);
+    $('#place-info').innerHTML=`<div class="stack" style="gap:8px"><div class="px sub">카카오 플레이스 · ${info.score?.avg?`★${info.score.avg} (리뷰 ${info.score.count})`:'평점 없음'}${info.blog_count?` · 블로그 ${info.blog_count}`:''}</div>
+      ${ph.length?`<div class="pgrid">${ph.map(u=>`<a href="${esc(sp.place.url||'#')}" target="_blank" rel="noopener"><img src="${thumb(u,'C320x320')}" alt="" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${esc(u)}'"></a>`).join('')}</div>`:''}
+      ${info.menus.length?`<div class="menus">${info.menus.slice(0,4).map(m=>`<div><b>MENU</b> ${esc(m.name)} <span class="sub">${won(m.price)}</span>${m.desc?` <span class="sub">· ${esc(m.desc)}</span>`:''}</div>`).join('')}</div>`:''}
+      ${info.ai?`<div class="sub" style="font-size:15px">${esc(info.ai)}</div>`:''}</div>`});
+}
+
+/* ---------- 내 주변 도전자: GPS/동네 → Kakao Local(server.py 중계) → 리스트 + 도발 스테이지 ---------- */
+const TAUNTS={
+  sundaeguk:['국물 한 입에 무릎 꿇을 준비 됐나?','여기 순대는 니가 아는 순대가 아니다.','깍두기 한 조각이면 승부 끝이다.','들깨 넣을 자신 있으면 들어와.','새우젓 간 못 맞추면 집에 가라.','머릿고기 앞에서 겸손해져라.','다대기 풀기 전에 각오부터 풀어.'],
+  any:['여기까지 올 수 있겠어?','한 그릇도 못 비우면 돌아가라.','그 입맛으로 날 평가한다고?','줄 서 봐야 안다, 꼬마야.','HIGH SCORE는 내 거다.','사장님이 널 기다린다. 웃으면서는 아니고.','6각 꽉 채울 자신 있으면 덤벼.',
+    // 밈체(MZ 톤) 반반
+    '찐으로 아는 사람만 들어옴 ㅇㅈ?','여기 안 와봤으면 말을 말자','인증샷 없으면 안 간 거임','웨이팅 30분? 그게 입장료다','6각 다 5점 주면 니 입맛 의심함','별점 테러는 못 받아준다 ㅋㅋ','오늘 안 오면 평생 못 먹는 각']};
+TAUNTS.sundaeguk.push('깍두기 안 시키면 사람 아님','새우젓 간 못 맞추면 광탈','순대국 찐팬 아니면 조용히 나가주세요','들깨 안 넣는 사람 손 들어, 집에 가');
+let places=[],stageIdx=-1,stageTimer=null,typeTimer=null,pickedPlace=null;const sShots=[]; // 격파 등록 촬영본
+/* 가게 사진·메뉴·평점: server.py /api/place (카카오 플레이스) + 썸네일 CDN */
+/* API 서버 주소: 기본은 같은 주소(server.py). GitHub Pages처럼 정적 호스팅이면 ?api=https://터널주소 로 한 번 알려주면 기억 */
+const API=(()=>{try{const q=new URLSearchParams(location.search).get('api');if(q!==null){localStorage.setItem('sundae-quest-api',q.replace(/\/$/,''));history.replaceState(null,'',location.pathname+location.hash)}return localStorage.getItem('sundae-quest-api')||''}catch{return ''}})();
+const thumb=(u,spec='R0x420')=>u?`https://img1.kakaocdn.net/cthumb/local/${spec}/?fname=${encodeURIComponent(u)}`:'';
+const placeCache={},placeReq={}; // placeCache: 받은 값(null=없음), placeReq: 진행 중 요청
+function getPlaceInfo(id){
+  if(!/^\d+$/.test(String(id)))return Promise.resolve(null);
+  if(!placeReq[id])placeReq[id]=fetch(API+'/api/place?id='+id).then(r=>r.json()).then(j=>placeCache[id]=j.error?null:j).catch(()=>placeCache[id]=null);
+  return placeReq[id];
+}
+const won=n=>n?Number(n).toLocaleString('ko-KR')+'원':'';
+/* 음식 사진은 첨부 불가, 그 자리에서 촬영만. captureShot() → 카메라 창 → 640px jpeg dataURL (취소면 null)
+   ponytail: localStorage 저장이라 장당 ~60KB, 격파 3장·평가 2장 제한 */
+let cam2=null;const stopCam2=()=>{cam2?.getTracks().forEach(t=>t.stop());cam2=null};
+$('#camdlg').addEventListener('close',stopCam2);
+function captureShot(title){
+  return new Promise(resolve=>{
+    let shot=null,done=false;const finish=v=>{if(done)return;done=true;stopCam2();$('#camdlg').close();resolve(v)};
+    $('#camui').innerHTML=`<div class="top"><div><span class="tape">SHOOT</span><h2 style="margin-top:8px">${esc(title)}</h2><div class="meta sub">첨부 불가 · 지금 눈앞의 음식만</div></div><button class="btn ghost" type="button" id="cam-x">✕</button></div>
+      <div class="cam"><video id="cam2-view" autoplay playsinline muted></video><img id="cam2-prev" alt="촬영본" hidden><div class="camover" id="cam2-msg">카메라 켜는 중…</div></div>
+      <div class="inline" style="align-items:center"><button class="btn sec" type="button" id="cam2-shutter" disabled>📸 찰칵</button><button class="btn ghost" type="button" id="cam2-retake" hidden>↺ 다시</button><button class="btn" type="button" id="cam2-use" disabled>이 사진 쓰기</button></div>`;
+    const v=$('#cam2-view'),prev=$('#cam2-prev'),msg=$('#cam2-msg');
+    $('#cam-x').onclick=()=>finish(null);$('#camdlg').addEventListener('close',()=>finish(null),{once:true});
+    (async()=>{
+      if(!navigator.mediaDevices?.getUserMedia){msg.textContent='이 브라우저는 카메라를 못 써요. 폰에서 찍어요.';return}
+      try{cam2=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280}},audio:false});v.srcObject=cam2;msg.hidden=true;$('#cam2-shutter').disabled=false}
+      catch(err){msg.textContent=err.name==='NotAllowedError'?'카메라 권한을 허용해야 찍을 수 있어요.':'카메라를 못 찾았어요.'}
+    })();
+    $('#cam2-shutter').onclick=()=>{const r=Math.min(1,640/Math.max(v.videoWidth,v.videoHeight));const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*r);c.height=Math.round(v.videoHeight*r);
+      c.getContext('2d').drawImage(v,0,0,c.width,c.height);shot=c.toDataURL('image/jpeg',.72);prev.src=shot;prev.hidden=false;v.hidden=true;$('#cam2-shutter').hidden=true;$('#cam2-retake').hidden=false;$('#cam2-use').disabled=false};
+    $('#cam2-retake').onclick=()=>{shot=null;prev.hidden=true;v.hidden=false;$('#cam2-shutter').hidden=false;$('#cam2-retake').hidden=true;$('#cam2-use').disabled=true};
+    $('#cam2-use').onclick=()=>finish(shot);
+    $('#camdlg').showModal();
+  });
+}
+/* 촬영 버튼 + 썸네일 묶음: shots 배열을 채운다 */
+function shootWidget(btn,box,shots,max,title){
+  const draw=()=>{box.innerHTML=shots.map((u,i)=>`<span style="position:relative"><img src="${u}" alt=""><button type="button" class="xs" data-rm="${i}">✕</button></span>`).join('');box.hidden=!shots.length;btn.disabled=shots.length>=max;btn.textContent=`📸 음식 촬영 (${shots.length}/${max})`};
+  btn.onclick=async()=>{if(shots.length>=max)return;const u=await captureShot(title);if(u){shots.push(u);draw()}};
+  box.onclick=e=>{const b=e.target.closest('[data-rm]');if(b){shots.splice(+b.dataset.rm,1);draw()}};
+  draw();return draw;
+}
+const drawSShots=shootWidget($('#s-shoot'),$('#s-prev'),sShots,3,'격파 인증 음식 촬영');
+const distTxt=m=>m==null||m===''?'':(+m<1000?`${m}m`:`${(+m/1000).toFixed(1)}km`);
+const short=a=>(a||'').split(' ').slice(0,2).join(' ');
+
+async function findPlaces(params){
+  $('#near').innerHTML='<div class="empty blink">SEARCHING…</div>';
+  try{
+    const r=await fetch(API+'/api/places?'+new URLSearchParams({q:params.q,size:15,...(params.x?{x:params.x,y:params.y,radius:1500,sort:'distance'}:{})}));
+    const j=await r.json();if(!r.ok||!Array.isArray(j.documents))throw new Error(j.error||j.message||r.status);
+    places=j.documents.filter(d=>/음식점/.test(d.category_group_name||'')||!d.category_group_name);
+    if(!places.length){$('#near').innerHTML='<div class="empty">근처에 도전자가 없어요. 반경을 넓히려면 동네 이름으로 찾아봐요.</div>';return}
+    renderNear();renderPlaceSelect();startStage(0,true);
+  }catch(err){console.warn(err);$('#near').innerHTML=`<div class="empty">검색 실패: ${esc(err.message)}<br>server.py가 켜져 있는지, 정적 호스팅이면 ?api=서버주소 를 붙였는지 확인해요.</div>`}
+}
+$('#gps').addEventListener('click',()=>{
+  if(!navigator.geolocation)return toast('이 브라우저는 GPS가 안 돼요');
+  $('#gps').disabled=true;$('#gps').textContent='📡 위치 잡는 중…';
+  const done=()=>{$('#gps').disabled=false;$('#gps').textContent='📍 GPS로 내 주변 찾기'};
+  navigator.geolocation.getCurrentPosition(p=>{done();findPlaces({q:menu.name,x:p.coords.longitude,y:p.coords.latitude})},
+    e=>{done();toast(e.code===1?'위치 권한이 막혔어요. 동네 이름으로 찾아요':'위치를 못 잡았어요. 동네 이름으로 찾아요');$('#near-area').focus()},{timeout:8000,maximumAge:60000});
+});
+$('#near-form').addEventListener('submit',e=>{e.preventDefault();const a=$('#near-area').value.trim();if(a)findPlaces({q:`${a} ${menu.name}`})});
+
+function renderNear(){
+  $('#near').className='near';
+  $('#near').innerHTML=places.map((p,i)=>{const done=spots.some(s=>s.place?.id===p.id);
+    return `<div class="pl ${i===stageIdx?'on':''}" data-pi="${i}" tabindex="0" role="button"><div><div class="nm">${esc(p.place_name)} ${done?'<span class="done">✔ 격파</span>':''}</div><div class="meta">${esc(p.road_address_name||p.address_name||'')} · ${esc((p.category_name||'').split('>').pop().trim())}</div></div><div class="dist">${distTxt(p.distance)||'—'}</div></div>`}).join('');
+}
+function startStage(i,auto){
+  clearInterval(stageTimer);stageTimer=null;showStage(i);
+  if(auto)stageTimer=setInterval(()=>showStage((stageIdx+1)%places.length),5000);
+}
+function showStage(i){
+  const p=places[i];if(!p)return;stageIdx=i;
+  const deck=[...(TAUNTS[menu.id]||[]),...TAUNTS.any];const line=deck[(i*7+places.length)%deck.length];
+  const st=$('#stage');st.hidden=false;
+  st.innerHTML=`<div class="stage shake"><div class="flashbg"></div><div class="stripes"></div><div class="vs">VS</div>
+    <div class="bowl">${menu.e}<i></i><i></i><i></i></div>
+    <div class="taunt"><div class="px" style="color:var(--m)">CHALLENGER ${i+1}/${places.length} · ${distTxt(p.distance)||short(p.address_name)}</div><div class="nm">${esc(p.place_name)}</div>
+      <div class="bubble" id="bubble"><span class="cur"></span></div>
+      <div class="inline"><button class="btn" type="button" data-fight="${i}">⚔ 격파하러 간다</button><a class="btn ghost" href="${esc(p.place_url)}" target="_blank" rel="noopener">지도 보기</a></div></div></div>`;
+  clearInterval(typeTimer);let k=0;const b=$('#bubble');
+  typeTimer=setInterval(()=>{k++;b.innerHTML=esc(line.slice(0,k))+'<span class="cur"></span>';if(k>=line.length)clearInterval(typeTimer)},45);
+  document.querySelectorAll('.near .pl').forEach(el=>el.classList.toggle('on',+el.dataset.pi===i));
+  // 진짜 음식 사진으로 교체 (카카오 플레이스) — 그릇 자리에 켄번즈 슬라이드, 이름 밑에 대표 메뉴·평점
+  getPlaceInfo(p.id).then(info=>{if(!info||stageIdx!==i)return;const ph=(info.photos.length?info.photos.map(x=>x.url):[info.main]).filter(Boolean).slice(0,4);
+    if(ph.length){const bowl=st.querySelector('.bowl');if(bowl)bowl.outerHTML=`<div class="shots">${ph.map((u,j)=>`<img src="${thumb(u)}" alt="" style="animation-delay:${j*3}s" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${esc(u)}'">`).join('')}<span class="shotn">📷 ${info.photos.length}+</span></div>`;st.querySelector('.stage').classList.add('has-shots')}
+    const m=info.menus[0],sc=info.score;const line2=[m?`대표 ${esc(m.name)} ${won(m.price)}`:'',sc?.avg?`카카오 ★${sc.avg} (${sc.count})`:''].filter(Boolean).join(' · ');
+    const nm=st.querySelector('.taunt .nm');if(line2&&nm)nm.insertAdjacentHTML('afterend',`<div class="meta">${line2}</div>`)});
+}
+document.addEventListener('click',e=>{
+  const pl=e.target.closest('.pl[data-pi]');if(pl)startStage(+pl.dataset.pi,false);
+  const f=e.target.closest('[data-fight]');if(f)pickPlace(places[+f.dataset.fight]);
+});
+function pickPlace(p){
+  pickedPlace=p;$('#s-name').value=p.place_name;$('#s-region').value=short(p.address_name);
+  $('#spot-form').scrollIntoView({behavior:'smooth',block:'start'});toast(`${p.place_name} 격파 등록 준비. 6각 점수를 매겨요`);
+}
+
+/* ---------- 캐릭터: 12x14 픽셀 아바타 + XP/띠 성장 → 먹신 ---------- */
+const SKINS=['#f6d2b4','#e8b48c','#c68b5c','#8d5a3b'];
+const HAIRC=['#1b1b2a','#5a3a1e','#c9a24a','#d94f4f','#3b8bd9','#e8e8e8'];
+/* 24x28 격자. r = [x,y,w,h] 사각형 목록, 색은 c(없으면 머리색) */
+const CAP=[[7,2,10,1],[5,3,14,1],[4,4,16,4],[4,8,1,2],[19,8,1,2],[6,8,3,1],[11,8,2,1],[15,8,3,1]]; // 기본 머리통 + 앞머리 톱니
+const HAIRS={short:{n:'짧은 머리',r:CAP},long:{n:'긴 머리',r:[...CAP,[3,8,2,11],[19,8,2,11],[2,14,1,5],[21,14,1,5]]},
+  bun:{n:'똥머리',r:[...CAP,[9,0,6,1],[8,1,8,1],[10,-1,4,1]]},mohawk:{n:'모히칸',r:[[10,-2,4,1],[9,-1,6,1],[9,0,6,4],[8,4,8,2],[6,6,12,1],[5,7,14,1],[4,8,1,2],[19,8,1,2]]},bald:{n:'민머리',r:[]}};
+const ACCS={none:{n:'없음'},
+  band:{n:'빨간 띠',c:'#d94f4f',r:[[4,7,16,2],[20,7,2,1],[21,8,2,1],[22,9,1,3]]},
+  glasses:{n:'안경',c:'#222',r:[[6,9,5,1],[6,13,5,1],[6,10,1,3],[10,10,1,3],[13,9,5,1],[13,13,5,1],[13,10,1,3],[17,10,1,3],[11,10,2,1],[4,10,2,1],[18,10,2,1]]},
+  cap:{n:'모자',c:'#3b8bd9',r:[[7,1,10,1],[5,2,14,1],[4,3,16,4],[4,7,19,1],[14,8,9,1]]},
+  towel:{n:'땀수건',c:'#f5f0dc',r:[[4,6,16,3],[2,7,2,1],[1,8,2,2],[2,10,1,2]]},
+  chop:{n:'젓가락',c:'#c9a24a',r:[[20,15,1,12],[22,14,1,12],[19,25,3,2]]},
+  apron:{n:'앞치마',c:'#e8537a',r:[[8,19,1,1],[15,19,1,1],[8,20,8,8],[6,22,2,6],[16,22,2,6]],pocket:[[10,23,4,3]]},
+  // 익선관: 검은 관 + 뒤로 선 날개 두 장, 금테
+  ikseon:{n:'익선관',c:'#15132a',r:[[7,-1,10,1],[5,0,14,1],[4,1,16,6],[8,-5,2,1],[7,-4,3,3],[14,-5,2,1],[14,-4,3,3],[9,-1,1,1],[14,-1,1,1]],c2:'#c9a24a',r2:[[4,6,16,1],[8,-2,2,1],[14,-2,2,1],[7,-4,1,2],[16,-4,1,2]]}};
+const LEVELS=[{n:'견습 식객',xp:0,c:'#e8e8e8'},{n:'노란띠 먹보',xp:30,c:'#ffd23f'},{n:'파란띠 국밥러',xp:80,c:'#3b8bd9'},{n:'빨간띠 순대마스터',xp:160,c:'#d94f4f'},{n:'검은띠 국물장인',xp:280,c:'#1b1b2a'},{n:'먹신 👑',xp:450,c:'#ffd23f',god:true}];
+const XP_RULE={spot:10,score:3,taunt:5,clear:25,vote:1};
+let me={name:'',avatar:{skin:0,hair:'short',hairc:0,acc:'none'},lvl:0},xp={total:0,n:{}};
+const lvlOf=t=>LEVELS.reduce((a,l,i)=>t>=l.xp?i:a,0);
+
+const PH=32; // 사진 머리 블록 한 변 (48격자 기준, 예전 16×16 저장본도 그대로 그림)
+/* 사진 → 16x16 픽셀 머리. 가운데 정사각(위쪽 치우침)을 잘라 축소하고 색을 32단계로 양자화, 타원 밖은 비움.
+   ponytail: 얼굴 인식 없음(가운데를 얼굴로 가정). 셀카처럼 얼굴이 중앙이면 잘 나온다. */
+function photoToPixels(img){
+  const w=img.naturalWidth,h=img.naturalHeight,sz=Math.min(w,h)*.62,sx=(w-sz)/2,sy=Math.max(0,(h-sz)*.22); // 얼굴이 블록을 꽉 채우게 타이트하게 자름
+  const c=document.createElement('canvas');c.width=c.height=PH;const g=c.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
+  g.drawImage(img,sx,sy,sz,sz,0,0,PH,PH);const d=g.getImageData(0,0,PH,PH).data;const out=[];
+  const cx=(PH-1)/2,rx=PH*.515,ry=PH*.54;
+  for(let i=0;i<PH*PH;i++){const x=i%PH,y=Math.floor(i/PH);const inside=((x-cx)/rx)**2+((y-cx)/ry)**2<=1;
+    if(!inside||d[i*4+3]<128){out.push('');continue}
+    const q=v=>Math.min(255,Math.round(((v-128)*1.15+128)/32)*32+8);out.push('#'+[d[i*4],d[i*4+1],d[i*4+2]].map(q).map(v=>v.toString(16).padStart(2,'0')).join(''))}
+  return out;
+}
+const nearest=(hex,pal)=>{const v=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));const a=v(hex);let best=0,bd=1e9;pal.forEach((p,i)=>{const b=v(p);const d=a.reduce((s,x,k)=>s+(x-b[k])**2,0);if(d<bd){bd=d;best=i}});return best};
+const avgHex=list=>{const v=list.filter(Boolean).map(h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)));if(!v.length)return null;const m=v.reduce((a,b)=>a.map((x,i)=>x+b[i]),[0,0,0]).map(x=>Math.round(x/v.length));return '#'+m.map(x=>x.toString(16).padStart(2,'0')).join('')};
+const randomAvatar=()=>({skin:Math.floor(Math.random()*SKINS.length),hair:Object.keys(HAIRS)[Math.floor(Math.random()*Object.keys(HAIRS).length)],hairc:Math.floor(Math.random()*HAIRC.length),acc:Object.keys(ACCS)[Math.floor(Math.random()*Object.keys(ACCS).length)]});
+const shade=(hex,k)=>'#'+[1,3,5].map(i=>Math.max(0,Math.min(255,Math.round(parseInt(hex.slice(i,i+2),16)*k))).toString(16).padStart(2,'0')).join('');
+function avatarSVG(av,lvl,size){
+  const L=LEVELS[lvl]||LEVELS[0],skin=SKINS[av.skin]||SKINS[0],hc=HAIRC[av.hairc]||HAIRC[0],dark=shade(skin,.78),blush=shade(skin,.92);
+  const R=(x,y,w,h,c)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+  const rs=(list,c)=>list.map(r=>R(...r,c)).join('');
+  const dobok='#f5f0dc',dobokS='#d9d2b8',ink='#1b1b2a';
+  let s='',f=''; // s: 24격자(2배 확대), f: 48격자 디테일
+  if(L.god)s+=`<circle cx="12" cy="11" r="14" fill="#ffd23f" opacity=".22"/><circle cx="12" cy="11" r="11" fill="#ffd23f" opacity=".18"/>`;
+  s+=R(9,18,6,2,skin)+R(9,19,6,1,dark); // 목
+  f+=R(18,36,12,1,shade(skin,.85)); // 목 그림자
+  const photo=av.photo&&Number.isInteger(Math.sqrt(av.photo.length))?av.photo:null;
+  if(photo){ // 사진 머리: 48격자 x=8..39, y=4..35 (16×16 구버전은 2칸씩)
+    const n=Math.sqrt(photo.length),cell=32/n;
+    photo.forEach((c,i)=>{if(c)f+=R(8+(i%n)*cell,4+Math.floor(i/n)*cell,cell,cell,c)});
+    if(L.god)f+=R(18,30,12,2,'#d94f4f80');
+  }else{
+  // 얼굴·귀
+  s+=R(5,5,14,12,skin)+R(6,4,12,1,skin)+R(6,17,12,1,skin)+R(4,9,1,4,skin)+R(19,9,1,4,skin)+R(4,10,1,2,dark)+R(19,10,1,2,dark);
+  // 머리
+  s+=rs((HAIRS[av.hair]||HAIRS.short).r,hc);
+  if(av.hair!=='bald')s+=R(6,4,3,1,shade(hc,1.35))+R(10,3,2,1,shade(hc,1.35));   // 하이라이트
+  // 눈썹·눈·코·입·볼
+  s+=R(7,8,4,1,shade(hc,.8))+R(13,8,4,1,shade(hc,.8));
+  s+=R(7,10,3,3,'#fff')+R(14,10,3,3,'#fff')+R(8,11,2,2,ink)+R(15,11,2,2,ink)+R(8,11,1,1,'#fff')+R(15,11,1,1,'#fff');
+  s+=R(11,12,2,2,dark)+R(11,13,1,1,shade(skin,.7));
+  s+=L.god?R(9,15,6,1,'#d94f4f')+R(10,16,4,1,'#b33')+R(10,15,4,1,'#fff'):R(10,15,4,1,'#8d5a3b')+R(9,14,1,1,'#8d5a3b')+R(14,14,1,1,'#8d5a3b');
+  s+=R(5,13,2,1,blush)+R(17,13,2,1,blush);
+  // --- 48격자 디테일 ---
+  const hd=shade(hc,.72),hl=shade(hc,1.5),sd=shade(skin,.8);
+  if(av.hair!=='bald'){f+=R(12,10,1,5,hd)+R(17,9,1,6,hd)+R(23,9,1,5,hd)+R(29,10,1,6,hd)+R(34,10,1,5,hd); // 머리결
+    f+=R(14,8,1,1,hl)+R(21,7,2,1,hl)+R(27,8,1,1,hl)}
+  f+=R(14,19,6,1,hd)+R(28,19,6,1,hd);                         // 눈꺼풀
+  f+=R(14,26,6,1,sd)+R(28,26,6,1,sd);                         // 눈 밑
+  f+=R(19,23,1,1,'#fff')+R(33,23,1,1,'#fff');                 // 눈 반짝 2
+  f+=R(22,27,1,1,shade(skin,.6))+R(25,27,1,1,shade(skin,.6)); // 콧구멍
+  f+=R(23,24,1,2,shade(skin,1.1));                            // 콧등 하이라이트
+  f+=L.god?R(20,33,8,1,'#7a1f1f'):R(20,32,8,1,shade('#8d5a3b',.75))+R(21,29,6,1,shade(skin,.9)); // 입술선·인중
+  f+=R(12,34,24,1,sd)+R(10,33,2,1,sd)+R(36,33,2,1,sd);        // 턱 그림자
+  f+=R(9,21,1,2,sd)+R(38,21,1,2,sd);                          // 귓속
+  f+=R(11,27,1,1,shade(blush,1.08))+R(36,27,1,1,shade(blush,1.08)); // 볼 점
+  }
+  // 도복 디테일(공통): 깃 바느질·소매 끝단·띠 결
+  f+=R(18,41,1,1,'#c9c2a6')+R(20,43,1,1,'#c9c2a6')+R(27,43,1,1,'#c9c2a6')+R(29,41,1,1,'#c9c2a6');
+  f+=R(6,52,6,1,'#d9d2b8')+R(36,52,6,1,'#d9d2b8')+R(12,46,24,1,'#e9e3cc');
+  f+=R(12,48,24,1,shade(L.c,1.2))+R(13,51,22,1,shade(L.c,.7))+R(20,50,2,1,shade(L.c,1.3))+R(26,50,2,1,shade(L.c,1.3));
+  // 도복·깃·소매·손
+  s+=R(6,20,12,8,dobok)+R(3,20,3,7,dobok)+R(18,20,3,7,dobok)+R(3,27,3,1,skin)+R(18,27,3,1,skin);
+  s+=R(9,20,1,1,dobokS)+R(10,21,1,1,dobokS)+R(11,22,2,1,dobokS)+R(13,21,1,1,dobokS)+R(14,20,1,1,dobokS)+R(5,20,1,7,dobokS)+R(18,20,1,7,dobokS);
+  // 띠(레벨 색)·매듭
+  s+=R(6,24,12,2,L.c)+R(11,23,2,4,L.c)+R(10,24,4,2,shade(L.c,.75))+R(12,26,1,2,shade(L.c,.85))+R(9,26,1,2,shade(L.c,.85));
+  // 장식
+  // 장식·왕관은 사진 머리 위에 올라가야 하므로 별도 레이어(acc: 24격자, f2: 48격자 디테일)
+  let acc='',f2='';const a=ACCS[av.acc];
+  if(a?.r)acc+=rs(a.r,a.c);if(a?.r2)acc+=rs(a.r2,a.c2);if(a?.pocket)acc+=rs(a.pocket,shade(a.c,.75))+R(11,23,2,1,'#fff');
+  if(a?.r?.length)f2+=rs(a.r.slice(0,1).map(([x,y,w])=>[x*2,y*2,w*2,1]),shade(a.c,1.25)); // 장식 윗면 하이라이트
+  if(av.acc==='apron')f2+=R(17,41,1,15,shade(a.c,.8))+R(30,41,1,15,shade(a.c,.8))+R(20,50,8,1,shade(a.c,.6)); // 앞치마 박음질·주머니 입구
+  if(L.god){acc+=R(7,0,10,1,'#ffd23f')+R(7,-2,2,2,'#ffd23f')+R(11,-3,2,3,'#ffd23f')+R(15,-2,2,2,'#ffd23f')+R(8,-1,1,1,'#ff4fa3')+R(11,-2,1,1,'#3ee8ff')+R(15,-1,1,1,'#5dff7a')+R(7,1,10,1,shade('#ffd23f',.75));
+    f2+=R(14,-1,20,1,'#fff6c2')+R(16,-5,1,1,'#fff')+R(24,-7,1,1,'#fff')+R(32,-5,1,1,'#fff')}
+  return `<svg viewBox="-2 -12 52 70" width="${size}" height="${Math.round(size*70/52)}" aria-label="내 캐릭터"><g transform="scale(2)">${s}</g>${f}<g transform="scale(2)">${acc}</g>${f2}</svg>`;
+}
+function renderChar(){
+  const i=lvlOf(xp.total),L=LEVELS[i],next=LEVELS[i+1];
+  $('#char-av').innerHTML=avatarSVG(me.avatar,i,150);$('#hud-av').innerHTML=avatarSVG(me.avatar,i,28);
+  $('#char-lvl').textContent=L.n;$('#char-xp').textContent=`XP ${xp.total}${next?` / 다음 띠 ${next.xp}`:' · MAX'}`;
+  $('#char-bar').style.width=(next?Math.min(100,(xp.total-L.xp)/(next.xp-L.xp)*100):100)+'%';$('#char-panel').classList.toggle('god',!!L.god);$('#stat-lvl').textContent=`${L.n} XP${xp.total}`;
+  const n=xp.n;$('#char-src').textContent=xp.total?`격파 ${n.spot||0} · 평가 ${n.score||0} · 도발 ${n.taunt||0} · 미션 격파 ${n.clear||0} · 투표 ${n.vote||0}`:'격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.';
+}
+let xpTimer=null;
+function scheduleXP(){clearTimeout(xpTimer);xpTimer=setTimeout(computeXP,250)}
+async function computeXP(){
+  if(!db||!uid)return;
+  const ids=[...new Set([...PRESETS.map(p=>p.id),...customs.map(c=>c.id)])];const n={spot:0,score:0,taunt:0,clear:0,vote:0};
+  for(const id of ids){
+    const [sp,sc,ms]=await Promise.all(['spots','scores','missions'].map(c=>db.collection(`menus/${id}/${c}`).get()));
+    n.spot+=sp.docs.filter(d=>d.data().by===uid).length;n.score+=sc.docs.filter(d=>d.data().by===uid).length;
+    ms.docs.forEach(d=>{const m=d.data();if(m.by===uid)n.taunt++;if(m.done&&m.clearedBy===uid)n.clear++;if((m.votes||{})[uid]&&m.by!==uid)n.vote++});
+  }
+  xp={n,total:Object.entries(n).reduce((a,[k,v])=>a+v*XP_RULE[k],0)};
+  const lvl=lvlOf(xp.total);renderChar();
+  if(lvl>(me.lvl||0)){me.lvl=lvl;await saveMe({lvl});levelUp(lvl)}
+}
+function levelUp(lvl){
+  const L=LEVELS[lvl];const el=document.createElement('div');el.className='lvlup';
+  el.innerHTML=`<div>${avatarSVG(me.avatar,lvl,140)}<h2>${L.god?'먹신 강림':'LEVEL UP!'}</h2><div style="font-size:24px;color:var(--fg);margin-top:8px">${esc(L.n)}</div></div>`;
+  document.body.append(el);el.onclick=()=>el.remove();setTimeout(()=>el.remove(),2600);
+}
+async function saveMe(patch){Object.assign(me,patch);await db.doc('players/'+uid).set({...me,t:Date.now()})}
+function openDesigner(){
+  const av={...me.avatar};let name=me.name;
+  const draw=()=>{$('#dsg-prev').innerHTML=avatarSVG(av,lvlOf(xp.total),140);
+    document.querySelectorAll('#dsg [data-k]').forEach(b=>b.classList.toggle('on',String(av[b.dataset.k])===b.dataset.v))};
+  $('#detail').innerHTML=`<div class="top"><div><span class="tape">CHARACTER DESIGN</span><h2 style="margin-top:8px">내 캐릭터 꾸미기</h2></div><button class="btn ghost" type="button" id="dlg-x">✕</button></div>
+    <div class="designer" id="dsg"><div class="charav" id="dsg-prev"></div><div class="stack" style="gap:12px">
+      <label><span class="px sub">이름</span><input type="text" id="dsg-name" maxlength="10" value="${esc(name)}" placeholder="먹신 후보 이름"></label>
+      <div class="inline" style="align-items:center"><label class="btn sec" style="display:inline-block">📷 사진으로 만들기<input type="file" id="dsg-photo" accept="image/*" hidden></label><button class="btn" type="button" id="dsg-random">🎲 랜덤 생성</button><button class="btn ghost" type="button" id="dsg-clear" ${me.avatar.photo?'':'hidden'}>사진 빼기</button></div>
+      <div class="sub" id="dsg-hint">사진은 얼굴이 가운데 오게. 머리만 사진 픽셀로 바뀌고 몸은 도복이에요.</div>
+      <div><div class="px sub">피부</div><div class="sw">${SKINS.map((c,i)=>`<button type="button" data-k="skin" data-v="${i}" style="background:${c}"></button>`).join('')}</div></div>
+      <div><div class="px sub">머리 모양</div><div class="opt">${Object.entries(HAIRS).map(([k,h])=>`<button type="button" data-k="hair" data-v="${k}">${h.n}</button>`).join('')}</div></div>
+      <div><div class="px sub">머리색</div><div class="sw">${HAIRC.map((c,i)=>`<button type="button" data-k="hairc" data-v="${i}" style="background:${c}"></button>`).join('')}</div></div>
+      <div><div class="px sub">장식</div><div class="opt">${Object.entries(ACCS).map(([k,a])=>`<button type="button" data-k="acc" data-v="${k}">${a.n}</button>`).join('')}</div></div>
+      <div><button class="btn" type="button" id="dsg-save">저장</button></div></div></div>`;
+  $('#dlg-x').onclick=()=>$('#dlg').close();
+  $('#dsg').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(!b)return;av[b.dataset.k]=b.dataset.k==='skin'||b.dataset.k==='hairc'?+b.dataset.v:b.dataset.v;if(b.dataset.k==='skin'||b.dataset.k==='hair'||b.dataset.k==='hairc')delete av.photo;$('#dsg-clear').hidden=!av.photo;draw()});
+  $('#dsg-random').onclick=()=>{Object.assign(av,randomAvatar());delete av.photo;$('#dsg-clear').hidden=true;$('#dsg-hint').textContent='랜덤 캐릭터! 마음에 안 들면 또 굴려요';draw()};
+  $('#dsg-clear').onclick=()=>{delete av.photo;$('#dsg-clear').hidden=true;draw()};
+  $('#dsg-photo').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();const url=URL.createObjectURL(f);
+    img.onload=()=>{try{av.photo=photoToPixels(img);
+        const px=av.photo,rng=(a,b)=>Array.from({length:b-a},(_,i)=>a+i),mid=rng(Math.round(PH*.375),Math.round(PH*.625)),tr=rng(Math.round(PH*.06),Math.round(PH*.19)),tx=rng(Math.round(PH*.3),Math.round(PH*.7));
+        const center=mid.flatMap(y=>mid.map(x=>px[y*PH+x])),top=tr.flatMap(y=>tx.map(x=>px[y*PH+x]));
+        const sc=avgHex(center),hcx=avgHex(top);if(sc)av.skin=nearest(sc,SKINS);if(hcx)av.hairc=nearest(hcx,HAIRC);
+        $('#dsg-clear').hidden=false;$('#dsg-hint').textContent='사진 머리 완성. 장식은 그대로 얹을 수 있어요';draw()}
+      catch(err){toast('사진을 못 읽었어요')}URL.revokeObjectURL(url)};
+    img.onerror=()=>{toast('이미지 파일이 아니에요');URL.revokeObjectURL(url)};img.src=url;e.target.value=''};
+  $('#dsg-save').onclick=async()=>{if(!guard())return;name=$('#dsg-name').value.trim()||'PLAYER 1';await saveMe({name,avatar:av});$('#hud-me').value=name;renderChar();$('#dlg').close();toast('캐릭터 저장. 이제 먹으러 가자');render()};
+  draw();$('#dlg').showModal();
+}
+$('#char-edit').addEventListener('click',openDesigner);
+
+/* ---------- 저장소: localStorage (문서 경로 → JSON). ponytail: 브라우저 한 대 안에서만 공유, 진짜 멀티플레이는 같은 API로 Firebase/Supabase 갈아끼우기 ---------- */
+function localDB(){
+  const KEY='sundae-quest';let data={};
+  const load=()=>{try{data=JSON.parse(localStorage.getItem(KEY))||{}}catch{data={}}};load();
+  const listeners=new Set(),notify=()=>listeners.forEach(l=>l());
+  const save=()=>{let err=null;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){err=e}notify();if(err)throw {code:'quota',message:String(err)}};
+  window.addEventListener('storage',e=>{if(e.key===KEY){load();notify()}});
+  const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const merge=(a,b)=>{for(const k in b)a[k]=b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])?merge({...(a[k]||{})},b[k]):b[k];return a};
+  const snap=(id,d)=>({id,exists:!!d,data:()=>d,metadata:{fromCache:false,hasPendingWrites:false}});
+  const docRef=path=>({id:path.split('/').pop(),path,
+    get:async()=>snap(path.split('/').pop(),data[path]),
+    set:async d=>{data[path]=d;save()},
+    update:async d=>{if(!data[path])throw{code:'invalid_argument',message:'no doc'};data[path]=merge({...data[path]},d);save()},
+    delete:async()=>{delete data[path];save()},
+    collection:p=>colRef(path+'/'+p)});
+  const colRef=(path,filters=[])=>{
+    const query=()=>{const docs=Object.entries(data).filter(([k])=>k.startsWith(path+'/')&&!k.slice(path.length+1).includes('/'))
+      .filter(([,d])=>filters.every(([f,op,v])=>op==='=='?d[f]===v:op==='!='?d[f]!==v:true)).map(([k,d])=>snap(k.split('/').pop(),d));
+      return {docs,size:docs.length,empty:!docs.length,docChanges:()=>[],metadata:{fromCache:false,hasPendingWrites:false}}};
+    return {path,doc:id=>docRef(path+'/'+(id||rid())),add:async d=>{const r=docRef(path+'/'+rid());await r.set(d);return r},
+      where:(f,op,v)=>colRef(path,[...filters,[f,op,v]]),orderBy:()=>colRef(path,filters),limit:()=>colRef(path,filters),get:async()=>query(),
+      onSnapshot:fn=>{const l=()=>fn(query());listeners.add(l);setTimeout(l,0);return()=>listeners.delete(l)}};
+  };
+  return {doc:docRef,collection:colRef};
+}
+function localUser(db){
+  let id;try{id=localStorage.getItem('sundae-quest-uid')}catch{}
+  if(!id){id='u_'+Math.random().toString(36).slice(2,12);try{localStorage.setItem('sundae-quest-uid',id)}catch{}}
+  const nameOf=async i=>(await db.doc('players/'+i).get()).data()?.name||'';
+  return {id:async()=>id,me:async()=>({id,name:await nameOf(id)}),
+    profiles:async ids=>Object.fromEntries(await Promise.all(ids.map(async i=>[i,{id:i,name:await nameOf(i),isMe:i===id}])))};
+}
+
+/* ---------- 부트 ---------- */
+async function boot(){
+  renderSelect();
+  db=localDB();user=localUser(db);uid=await user.id();
+  const pd=(await db.doc('players/'+uid).get()).data();if(pd){me={...me,...pd,avatar:{...me.avatar,...(pd.avatar||{})}}}
+  $('#hud-me').value=me.name;renderChar();
+  $('#hud-me').addEventListener('change',e=>{saveMe({name:e.target.value.trim()||'PLAYER 1'});render()});
+  menusUnsub=db.collection('menus').onSnapshot(s=>{customs=s.docs.map(d=>({id:d.id,...d.data()}));if(!menu)renderSelect();scheduleXP()});
+  const fromHash=()=>{const h=location.hash.slice(1);if(/^[a-z0-9_]+$/i.test(h)&&h!==menu?.id)enter(h)};
+  window.addEventListener('hashchange',fromHash);fromHash();
+}
+boot();
+</script>
+</body>
+</html>
