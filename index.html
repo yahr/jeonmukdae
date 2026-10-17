@@ -334,7 +334,7 @@ function renderSelect(){
   $('#customs-wrap').hidden=!others.length;
   $('#customs').innerHTML=others.map(c=>`<button class="card" type="button" data-id="${esc(c.id)}"><span class="e">${esc(c.e||'🍽️')}</span><span class="nm">${esc(c.name)}</span><span class="px">CUSTOM</span></button>`).join('');
 }
-document.addEventListener('click',e=>{const b=e.target.closest('.card[data-id]');if(b)enter(b.dataset.id)});
+document.addEventListener('click',e=>{const b=e.target.closest('#select [data-id]');if(b)enter(b.dataset.id)}); // 메뉴 카드 + 시즌 도장 입장 버튼
 $('#custom-form').addEventListener('submit',e=>{e.preventDefault();const n=$('#custom-name').value.trim();if(n)enter(slug(n),n)});
 $('#rank-scope').addEventListener('click',()=>{if(seasonOf(menu?.id)){allTime=!allTime;render()}});
 $('#back').addEventListener('click',()=>{unsubs.forEach(u=>u());unsubs=[];menu=null;clearInterval(stageTimer);clearInterval(typeTimer);places=[];stageIdx=-1;$('#stage').hidden=true;$('#near').className='sub';$('#near').textContent='GPS 버튼을 누르면 반경 1.5km 안의 가게들이 줄을 서요. 한 놈씩 도발해 올 거예요.';history.replaceState(null,'','#');$('#dojo').hidden=true;$('#select').hidden=false;$('#hud-title').textContent='전국먹자대회';$('#hud-tag').textContent='INSERT COIN · #전먹대 · 전국 먹자 도장깨기';renderSelect()});
