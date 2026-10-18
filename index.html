@@ -543,7 +543,7 @@ TAUNTS.sundaeguk.push('깍두기 안 시키면 사람 아님','새우젓 간 못
 let places=[],stageIdx=-1,stageTimer=null,typeTimer=null,pickedPlace=null;const sShots=[]; // 격파 등록 촬영본
 /* 가게 사진·메뉴·평점: server.py /api/place (카카오 플레이스) + 썸네일 CDN */
 /* API 서버 주소: 기본은 같은 주소(server.py). GitHub Pages처럼 정적 호스팅이면 ?api=https://터널주소 로 한 번 알려주면 기억 */
-const API=(()=>{try{const q=new URLSearchParams(location.search).get('api');if(q!==null){localStorage.setItem('sundae-quest-api',q.replace(/\/$/,''));history.replaceState(null,'',location.pathname+location.hash)}return localStorage.getItem('sundae-quest-api')||''}catch{return ''}})();
+const API=(()=>{try{const q=new URLSearchParams(location.search).get('api');if(q!==null){localStorage.setItem('sundae-quest-api',q.replace(/\/$/,''));history.replaceState(null,'',location.pathname+location.hash)}const d=/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)?'':'https://jeonmukdae-api.jeonmukdae.workers.dev';return localStorage.getItem('sundae-quest-api')||d}catch{return 'https://jeonmukdae-api.jeonmukdae.workers.dev'}})(); // localhost는 server.py, 그 외(GitHub Pages 등)는 Cloudflare Worker
 const thumb=(u,spec='R0x420')=>u?`https://img1.kakaocdn.net/cthumb/local/${spec}/?fname=${encodeURIComponent(u)}`:'';
 const placeCache={},placeReq={}; // placeCache: 받은 값(null=없음), placeReq: 진행 중 요청
 function getPlaceInfo(id){

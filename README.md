@@ -12,24 +12,24 @@ python3 server.py 8791
 # http://localhost:8791
 ```
 
-## 폰에서 쓰기 (GPS·카메라는 https 필요)
+## 배포
 
-맥에서 서버를 켜 두고 터널로 https 주소를 냅니다.
+- 페이지: GitHub Pages → https://yahr.github.io/jeonmukdae/ (main 브랜치 루트, push 하면 1~2분 뒤 갱신)
+- API: Cloudflare Worker → https://jeonmukdae-api.jeonmukdae.workers.dev (`worker/` 폴더, `server.py`와 같은 두 엔드포인트)
 
 ```bash
-brew install cloudflared
+cd worker && wrangler deploy   # API 고칠 때
+```
+
+페이지는 localhost에서 열면 `server.py`를, 그 외 주소에서는 Worker를 API로 씁니다. 다른 서버를 쓰려면 `?api=https://주소` 를 한 번 붙여 열면 기억합니다.
+
+## 폰에서 맥 서버를 직접 쓰고 싶을 때 (선택)
+
+```bash
 cloudflared tunnel --url http://localhost:8791
 ```
 
-출력되는 `https://xxxx.trycloudflare.com` 주소를 폰에서 열면 끝. 주소는 켤 때마다 바뀝니다.
-
-## GitHub Pages (서버 없이)
-
-정적 페이지만 올라가므로 가게 검색·카카오 사진은 꺼집니다. 터널 주소를 한 번만 알려주면 그쪽 API를 씁니다.
-
-```
-https://yahr.github.io/jeonmukdae/?api=https://xxxx.trycloudflare.com
-```
+출력되는 `https://xxxx.trycloudflare.com` 주소를 폰에서 열면 됩니다. 주소는 켤 때마다 바뀌고 몇 시간 뒤 끊길 수 있습니다.
 
 ## 시즌 바꾸기
 

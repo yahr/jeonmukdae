@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 .DS_Store
+worker/node_modules/
+worker/.wrangler/
