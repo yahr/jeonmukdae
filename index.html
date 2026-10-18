@@ -462,7 +462,7 @@ function selectedPlace(){
 }
 $('#m-find').addEventListener('click',async()=>{
   const q=$('#m-search').value.trim();if(!q)return;$('#m-find').disabled=true;
-  try{const r=await fetch(API+'/api/places?'+new URLSearchParams({q:`${q} ${menu.name}`,size:10}));const j=await r.json();searchPlaces=Array.isArray(j.documents)?j.documents:[];
+  try{const r=await apiFetch('/api/places?'+new URLSearchParams({q:`${q} ${menu.name}`,size:10}));const j=await r.json();searchPlaces=Array.isArray(j.documents)?j.documents:[];
     renderPlaceSelect();if(searchPlaces.length){$('#m-place').value='k:'+searchPlaces[0].id;toast(`${searchPlaces.length}곳 찾음. 매장에서 골라요`)}else toast('못 찾았어요. 다른 이름으로')}
   catch(err){toast('검색 실패: '+err.message)}finally{$('#m-find').disabled=false}
 });
@@ -551,12 +551,18 @@ TAUNTS.sundaeguk.push('깍두기 안 시키면 사람 아님','새우젓 간 못
 let places=[],stageIdx=-1,stageTimer=null,typeTimer=null,pickedPlace=null;const sShots=[]; // 격파 등록 촬영본
 /* 가게 사진·메뉴·평점: server.py /api/place (카카오 플레이스) + 썸네일 CDN */
 /* API 서버 주소: 기본은 같은 주소(server.py). GitHub Pages처럼 정적 호스팅이면 ?api=https://터널주소 로 한 번 알려주면 기억 */
-const API=(()=>{try{const q=new URLSearchParams(location.search).get('api');if(q!==null){localStorage.setItem('sundae-quest-api',q.replace(/\/$/,''));history.replaceState(null,'',location.pathname+location.hash)}const d=/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)?'':'https://jeonmukdae-api.jeonmukdae.workers.dev';return localStorage.getItem('sundae-quest-api')||d}catch{return 'https://jeonmukdae-api.jeonmukdae.workers.dev'}})(); // localhost는 server.py, 그 외(GitHub Pages 등)는 Cloudflare Worker
+const API_DEFAULT=/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)?'':'https://jeonmukdae-api.jeonmukdae.workers.dev'; // localhost는 server.py, 그 외는 Worker
+let API=(()=>{try{const q=new URLSearchParams(location.search).get('api');if(q!==null){if(q)localStorage.setItem('sundae-quest-api',q.replace(/\/$/,''));else localStorage.removeItem('sundae-quest-api');history.replaceState(null,'',location.pathname+location.hash)}return localStorage.getItem('sundae-quest-api')||API_DEFAULT}catch{return API_DEFAULT}})();
+/* 기억해 둔 API 주소(예: 끊긴 터널)가 안 통하면 기본 주소로 자동 복귀 */
+async function apiFetch(path){
+  try{return await fetch(API+path)}
+  catch(e){if(API===API_DEFAULT)throw e;console.warn('API 주소 복구',API,'→',API_DEFAULT);API=API_DEFAULT;try{localStorage.removeItem('sundae-quest-api')}catch{}return fetch(API+path)}
+}
 const thumb=(u,spec='R0x420')=>u?`https://img1.kakaocdn.net/cthumb/local/${spec}/?fname=${encodeURIComponent(u)}`:'';
 const placeCache={},placeReq={}; // placeCache: 받은 값(null=없음), placeReq: 진행 중 요청
 function getPlaceInfo(id){
   if(!/^\d+$/.test(String(id)))return Promise.resolve(null);
-  if(!placeReq[id])placeReq[id]=fetch(API+'/api/place?id='+id).then(r=>r.json()).then(j=>placeCache[id]=j.error?null:j).catch(()=>placeCache[id]=null);
+  if(!placeReq[id])placeReq[id]=apiFetch('/api/place?id='+id).then(r=>r.json()).then(j=>placeCache[id]=j.error?null:j).catch(()=>placeCache[id]=null);
   return placeReq[id];
 }
 const won=n=>n?Number(n).toLocaleString('ko-KR')+'원':'';
@@ -598,12 +604,12 @@ const short=a=>(a||'').split(' ').slice(0,2).join(' ');
 async function findPlaces(params){
   $('#near').innerHTML='<div class="empty blink">SEARCHING…</div>';
   try{
-    const r=await fetch(API+'/api/places?'+new URLSearchParams({q:params.q,size:15,...(params.x?{x:params.x,y:params.y,radius:1500,sort:'distance'}:{})}));
+    const r=await apiFetch('/api/places?'+new URLSearchParams({q:params.q,size:15,...(params.x?{x:params.x,y:params.y,radius:1500,sort:'distance'}:{})}));
     const j=await r.json();if(!r.ok||!Array.isArray(j.documents))throw new Error(j.error||j.message||r.status);
     places=j.documents.filter(d=>/음식점/.test(d.category_group_name||'')||!d.category_group_name);
     if(!places.length){$('#near').innerHTML='<div class="empty">근처에 도전자가 없어요. 반경을 넓히려면 동네 이름으로 찾아봐요.</div>';return}
     renderNear();renderPlaceSelect();startStage(0,true);
-  }catch(err){console.warn(err);$('#near').innerHTML=`<div class="empty">검색 실패: ${esc(err.message)}<br>server.py가 켜져 있는지, 정적 호스팅이면 ?api=서버주소 를 붙였는지 확인해요.</div>`}
+  }catch(err){console.warn(err);$('#near').innerHTML=`<div class="empty">검색 실패: ${esc(err.message)}<br>잠시 후 다시 눌러요. 계속 그러면 주소 뒤에 ?api= 를 붙여 열면 기본 서버로 돌아가요.</div>`}
 }
 $('#gps').addEventListener('click',()=>{
   if(!navigator.geolocation)return toast('이 브라우저는 GPS가 안 돼요');
