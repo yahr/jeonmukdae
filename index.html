@@ -137,7 +137,8 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .trophy .noproof{display:grid;place-items:center;text-align:center;font-family:var(--px);font-size:8px;color:var(--dim);border-color:var(--dim)}
 /* 시즌 배너 */
 .season{position:relative;overflow:hidden;background:#3a0e24;border:4px solid var(--m);box-shadow:8px 8px 0 var(--shadow);padding:18px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
-.season>*{position:relative;z-index:1}
+.season>:not(.stripes){position:relative;z-index:1}
+.season .stripes{position:absolute}
 .season .snm{font-size:34px;color:var(--y);line-height:1.1;margin:6px 0 4px}
 .season .meta{color:var(--dim);font-size:15px}
 .card.season-card{border-color:var(--m)}
@@ -897,7 +898,7 @@ async function migrateLocal(){
 
 /* ---------- 부트 ---------- */
 async function boot(){
-  renderSelect();
+  renderSelect();renderChar(); // 서버 응답 전에도 기본 캐릭터부터
   db=remoteDB(DBBASE);
   if(!authInfo)await openAuth();
   user=remoteUser(db);uid=await user.id();
