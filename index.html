@@ -147,11 +147,12 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .card.season-card .px{color:var(--m)}
 @media (max-width:560px){.season{grid-template-columns:1fr}.season .stack{justify-items:start!important}}
 /* 캐릭터 */
-.char{display:grid;grid-template-columns:170px 1fr;gap:18px;align-items:center}
-.charav{display:grid;place-items:center;background:var(--panel2);border:4px solid var(--fg);padding:8px;min-height:170px}
+.char{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px 16px}
+.charav{display:grid;place-items:center;background:var(--panel2);border:3px solid var(--fg);padding:4px;min-height:0}
+.designer .charav{border-width:4px;padding:8px}
 .charav svg,#hud-av svg,.lvlup svg{image-rendering:pixelated;shape-rendering:crispEdges}
 #hud-av svg{width:30px;height:40px;vertical-align:middle;margin-right:6px}
-.xpbar{height:16px;border:3px solid var(--fg);background:var(--bg);padding:2px}
+.xpbar{height:12px;border:3px solid var(--fg);background:var(--bg);padding:2px}
 .xpbar div{height:100%;background:var(--g);transition:width .6s steps(12)}
 .god .xpbar div{background:linear-gradient(90deg,var(--y),#fff,var(--y))}
 .sw{display:flex;flex-wrap:wrap;gap:8px}
@@ -162,7 +163,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .designer{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start}
 .lvlup{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(7,6,26,.88);text-align:center;cursor:pointer}
 .lvlup h2{font-family:var(--px);font-size:clamp(16px,4vw,28px);color:var(--y);text-shadow:4px 4px 0 var(--m);animation:vs .6s cubic-bezier(.2,1.6,.4,1) both}
-@media (max-width:560px){.char,.designer{grid-template-columns:1fr}.charav{min-height:0}}
+@media (max-width:560px){.designer{grid-template-columns:1fr}.char{grid-template-columns:72px 1fr;gap:10px}}
 .cam{position:relative;background:#000;border:3px solid var(--fg);aspect-ratio:4/3;max-width:100%;display:grid;place-items:center;overflow:hidden}
 .cam video,.cam img{width:100%;height:100%;object-fit:cover}
 .camover{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--y);background:rgba(7,6,26,.7)}
@@ -184,12 +185,11 @@ footer{color:var(--dim);font-size:14px;text-align:center}
   <section id="select" class="stack">
     <div class="panel char" id="char-panel">
       <div class="charav" id="char-av"></div>
-      <div class="stack" style="gap:10px;min-width:0">
-        <div class="hud"><h2>MY CHARACTER</h2><button class="btn sec" type="button" id="char-edit">🎨 꾸미기</button></div>
-        <div><span class="tape" id="char-lvl">견습 식객</span> <span class="px sub" id="char-xp">XP 0</span></div>
+      <div class="stack" style="gap:6px;min-width:0">
+        <div class="hud" style="gap:6px 10px"><div><span class="tape" id="char-lvl">견습 식객</span> <span class="px sub" id="char-xp">XP 0</span></div><button class="btn sec" type="button" id="char-edit" style="font-size:15px;padding:6px 10px">🎨 꾸미기</button></div>
         <div class="xpbar"><div id="char-bar"></div></div>
-        <div class="sub" id="char-src">격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.</div>
-        <button class="btn sec" type="button" id="migrate-btn" hidden>⬆ 옛 기록 올리기</button>
+        <div class="sub" id="char-src" style="font-size:14px">격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.</div>
+        <button class="btn sec" type="button" id="migrate-btn" hidden style="font-size:15px;padding:6px 10px;justify-self:start">⬆ 옛 기록 올리기</button>
       </div>
     </div>
     <div id="season-banner"></div>
@@ -758,7 +758,7 @@ function avatarSVG(av,lvl,size){
 }
 function renderChar(){
   const i=lvlOf(xp.total),L=LEVELS[i],next=LEVELS[i+1];
-  $('#char-av').innerHTML=avatarSVG(me.avatar,i,150);$('#hud-av').innerHTML=avatarSVG(me.avatar,i,28);
+  $('#char-av').innerHTML=avatarSVG(me.avatar,i,76);$('#hud-av').innerHTML=avatarSVG(me.avatar,i,28);
   $('#char-lvl').textContent=L.n;$('#char-xp').textContent=`XP ${xp.total}${next?` / 다음 띠 ${next.xp}`:' · MAX'}`;
   $('#char-bar').style.width=(next?Math.min(100,(xp.total-L.xp)/(next.xp-L.xp)*100):100)+'%';$('#char-panel').classList.toggle('god',!!L.god);$('#stat-lvl').textContent=`${L.n} XP${xp.total}`;
   const n=xp.n;$('#char-src').textContent=xp.total?`격파 ${n.spot||0} · 평가 ${n.score||0} · 도발 ${n.taunt||0} · 미션 격파 ${n.clear||0} · 투표 ${n.vote||0}`:'격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.';
