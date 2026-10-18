@@ -2,8 +2,10 @@
 
 매달 한 종목씩 전국 가게를 도장깨기하는 레트로 오락실 게임. 순대국부터.
 
-- `index.html` 하나가 게임 전체. 기록은 브라우저 localStorage에 저장.
-- `server.py` 는 정적 파일 + 카카오 중계 API (`/api/places` 근처 가게 검색, `/api/place` 사진·메뉴·평점).
+- `index.html` 하나가 게임 전체. 기록은 Cloudflare Worker 뒤의 D1(문서)·R2(사진)에 저장되고 8초마다 동기화.
+- 신원은 닉네임 + PIN. 가입 화면 없이 입장 창에서 정하고, 다른 기기에서 같은 걸 넣으면 이어짐. PIN은 복구 불가.
+- `server.py` 는 로컬 개발용 정적 서버 + 카카오 중계 (`/api/places`, `/api/place`). 저장소는 로컬에서도 Worker를 씀.
+- `worker/` 가 운영 API: 카카오 중계 + `/auth` + `/db/*`(sync/list/get/set/update/delete) + `/photo/*`. 스키마는 `worker/schema.sql`.
 
 ## 돌리기
 

@@ -88,7 +88,7 @@ dialog::backdrop{background:rgba(7,6,26,.8)}
 .tape{font-family:var(--px);font-size:10px;color:var(--bg);background:var(--y);padding:4px 8px;display:inline-block}
 footer{color:var(--dim);font-size:14px;text-align:center}
 @media (max-width:480px){.row{grid-template-columns:40px 1fr 60px}.row .total{grid-column:2/4;text-align:left}.hex.mini{width:48px;height:48px}}
-#hud-me{font-family:var(--px);font-size:11px;width:120px;padding:4px 6px;border-width:2px;color:var(--y)}
+
 /* 도발 스테이지: 격투게임 도전자 등장 컷신 */
 .stage{position:relative;overflow:hidden;background:#07061a;border:4px solid var(--m);box-shadow:8px 8px 0 var(--shadow);padding:18px;min-height:230px;display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center}
 .stage.shake{animation:shake .5s steps(2,end)}
@@ -174,7 +174,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
       <div class="px" id="hud-tag">INSERT COIN · #전먹대 · 전국 먹자 도장깨기</div>
       <h1 id="hud-title">전국먹자대회</h1>
     </div>
-    <label class="px" id="hud-right" style="display:flex;gap:8px;align-items:center"><span id="hud-av"></span>PLAYER <input type="text" id="hud-me" maxlength="10" placeholder="이름 입력"></label>
+    <div class="px" id="hud-right" style="display:flex;gap:8px;align-items:center"><span id="hud-av"></span>PLAYER <span id="hud-me" style="color:var(--y)">…</span><button class="btn ghost" type="button" id="hud-out" style="font-size:13px;padding:4px 8px;box-shadow:2px 2px 0 var(--fg)">나가기</button></div>
   </header>
 
   <!-- 메뉴 선택 -->
@@ -186,6 +186,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
         <div><span class="tape" id="char-lvl">견습 식객</span> <span class="px sub" id="char-xp">XP 0</span></div>
         <div class="xpbar"><div id="char-bar"></div></div>
         <div class="sub" id="char-src">격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.</div>
+        <button class="btn sec" type="button" id="migrate-btn" hidden>⬆ 옛 기록 올리기</button>
       </div>
     </div>
     <div id="season-banner"></div>
@@ -201,7 +202,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
         <label><span class="px sub">새 메뉴 도장 열기</span><input type="text" id="custom-name" maxlength="12" placeholder="예: 평양냉면, 제육볶음" required></label>
         <button class="btn sec" type="submit">도장 개설</button>
       </form>
-      <div class="sub" id="login-note">기록은 이 브라우저에 저장돼요. 탭을 여러 개 열면 순위가 실시간으로 같이 움직여요.</div>
+      <div class="sub" id="login-note"></div>
     </div>
   </section>
 
@@ -270,6 +271,13 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 
 <dialog id="dlg"><div class="detail" id="detail"></div></dialog>
 <dialog id="camdlg"><div class="detail" id="camui"></div></dialog>
+<dialog id="authdlg"><form class="detail" id="auth-form">
+  <div><span class="tape">INSERT COIN</span><h2 style="margin-top:8px">전국먹자대회 입장</h2><div class="meta sub">닉네임과 PIN만 있으면 돼요. 다른 기기에서 같은 걸 넣으면 내 캐릭터·기록이 따라와요.</div></div>
+  <label><span class="px sub">닉네임 (1~12자)</span><input type="text" id="auth-nick" maxlength="12" required autocomplete="username"></label>
+  <label><span class="px sub">PIN (숫자 4~8자리 · 잊으면 못 찾아요)</span><input type="password" id="auth-pin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" required autocomplete="current-password"></label>
+  <div class="sub" id="auth-msg">처음이면 그 닉네임으로 새로 만들어져요.</div>
+  <div class="inline"><button class="btn" type="submit">▶ 입장</button><button class="btn ghost" type="button" id="auth-skip">구경만 할래요</button></div>
+</form></dialog>
 
 <script>
 const PRESETS=[
@@ -421,7 +429,7 @@ async function resolveNames(){
 
 /* ---------- 쓰기 ---------- */
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.append(t);setTimeout(()=>t.remove(),2600)}
-function guard(){if(!db||!uid){toast('로그인한 참여자만 기록할 수 있어요');return false}return true}
+function guard(){if(!db||!uid||!authInfo){toast('입장(닉네임·PIN)해야 기록할 수 있어요');return false}return true}
 const onWriteErr=e=>{console.warn(e);toast(e?.code==='quota'?'저장 공간이 꽉 찼어요. 오래된 인증샷을 지워야 해요':e?.code==='invalid_argument'?'쓰기 권한이 없어요 (뷰어 권한)':'저장 실패, 잠시 후 다시')};
 
 $('#spot-form').addEventListener('submit',async e=>{
@@ -792,55 +800,109 @@ function openDesigner(){
         $('#dsg-clear').hidden=false;$('#dsg-hint').textContent='사진 머리 완성. 장식은 그대로 얹을 수 있어요';draw()}
       catch(err){toast('사진을 못 읽었어요')}URL.revokeObjectURL(url)};
     img.onerror=()=>{toast('이미지 파일이 아니에요');URL.revokeObjectURL(url)};img.src=url;e.target.value=''};
-  $('#dsg-save').onclick=async()=>{if(!guard())return;name=$('#dsg-name').value.trim()||'PLAYER 1';await saveMe({name,avatar:av});$('#hud-me').value=name;renderChar();$('#dlg').close();toast('캐릭터 저장. 이제 먹으러 가자');render()};
+  $('#dsg-save').onclick=async()=>{if(!guard())return;name=$('#dsg-name').value.trim()||'PLAYER 1';await saveMe({name,avatar:av});$('#hud-me').textContent=name;renderChar();$('#dlg').close();toast('캐릭터 저장. 이제 먹으러 가자');render()};
   draw();$('#dlg').showModal();
 }
 $('#char-edit').addEventListener('click',openDesigner);
 
-/* ---------- 저장소: localStorage (문서 경로 → JSON). ponytail: 브라우저 한 대 안에서만 공유, 진짜 멀티플레이는 같은 API로 Firebase/Supabase 갈아끼우기 ---------- */
-function localDB(){
-  const KEY='sundae-quest';let data={};
-  const load=()=>{try{data=JSON.parse(localStorage.getItem(KEY))||{}}catch{data={}}};load();
-  const listeners=new Set(),notify=()=>listeners.forEach(l=>l());
-  const save=()=>{let err=null;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){err=e}notify();if(err)throw {code:'quota',message:String(err)}};
-  window.addEventListener('storage',e=>{if(e.key===KEY){load();notify()}});
+/* ---------- 저장소: Cloudflare Worker(D1) 원격 문서 저장소. localDB와 같은 API(doc/collection/get/set/update/delete/onSnapshot).
+   읽기: 구독한 컬렉션을 8초마다 /db/sync 로 당겨옴(탭이 보일 때만). 쓰기: 로컬에 먼저 반영하고 서버에 보냄, 거절되면 되돌림.
+   ponytail: 폴링이라 "실시간"은 8초 지연. 더 빠르게 하려면 Durable Object/WebSocket. ---------- */
+const DBBASE='https://jeonmukdae-api.jeonmukdae.workers.dev';
+const AUTHKEY='sundae-quest-auth';
+const loadAuth=()=>{try{return JSON.parse(localStorage.getItem(AUTHKEY)||'null')}catch{return null}};
+let authInfo=loadAuth();
+function remoteDB(base){
+  const data={},listeners=new Set(),cols=new Set(),loaded=new Set();let lastT=0,syncing=false;
+  const hdr=()=>authInfo?{'Authorization':`Bearer ${authInfo.uid}:${authInfo.pin}`}:{};
+  const notify=()=>listeners.forEach(l=>l());
   const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const merge=(a,b)=>{for(const k in b)a[k]=b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])?merge({...(a[k]||{})},b[k]):b[k];return a};
   const snap=(id,d)=>({id,exists:!!d,data:()=>d,metadata:{fromCache:false,hasPendingWrites:false}});
+  async function api(path,opt={}){
+    const r=await fetch(base+path,{...opt,headers:{'Content-Type':'application/json',...hdr()}});
+    const j=await r.json().catch(()=>({}));
+    if(r.status===401){authInfo=null;try{localStorage.removeItem(AUTHKEY)}catch{}}
+    if(!r.ok)throw{code:r.status===401||r.status===403?'invalid_argument':r.status===413?'quota':'unavailable',message:j.error||('HTTP '+r.status)};
+    return j;
+  }
+  const apply=docs=>{let ch=false;for(const d of docs){if(d.deleted){if(data[d.path]!==undefined){delete data[d.path];ch=true}}else{data[d.path]=d.body;ch=true}}return ch};
+  async function loadCol(col){if(loaded.has(col))return;const j=await api(`/db/list?col=${encodeURIComponent(col)}`);apply(j.docs);loaded.add(col);if(!lastT)lastT=j.t}
+  async function sync(){
+    if(syncing||!cols.size)return;syncing=true;
+    try{const j=await api(`/db/sync?cols=${encodeURIComponent([...cols].join(','))}&since=${lastT}`);const ch=apply(j.docs);lastT=j.t;if(ch)notify()}
+    catch(e){console.warn('sync',e)}finally{syncing=false}
+  }
+  setInterval(()=>{if(!document.hidden)sync()},8000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
   const docRef=path=>({id:path.split('/').pop(),path,
-    get:async()=>snap(path.split('/').pop(),data[path]),
-    set:async d=>{data[path]=d;save()},
-    update:async d=>{if(!data[path])throw{code:'invalid_argument',message:'no doc'};data[path]=merge({...data[path]},d);save()},
-    delete:async()=>{delete data[path];save()},
+    get:async()=>{if(data[path]===undefined&&!loaded.has(path.split('/').slice(0,-1).join('/'))){try{const j=await api(`/db/get?path=${encodeURIComponent(path)}`);if(j.exists)data[path]=j.body}catch(e){console.warn(e)}}return snap(path.split('/').pop(),data[path])},
+    set:async d=>{const prev=data[path];data[path]=d;notify();try{const j=await api(`/db/set?path=${encodeURIComponent(path)}`,{method:'POST',body:JSON.stringify(d)});data[path]=j.body;notify()}catch(e){if(prev===undefined)delete data[path];else data[path]=prev;notify();throw e}},
+    update:async d=>{const prev=data[path];if(!prev)throw{code:'invalid_argument',message:'no doc'};data[path]=merge({...prev},d);notify();try{const j=await api(`/db/update?path=${encodeURIComponent(path)}`,{method:'POST',body:JSON.stringify(d)});data[path]=j.body;notify()}catch(e){data[path]=prev;notify();throw e}},
+    delete:async()=>{const prev=data[path];delete data[path];notify();try{await api(`/db/delete?path=${encodeURIComponent(path)}`,{method:'POST'})}catch(e){if(prev!==undefined)data[path]=prev;notify();throw e}},
     collection:p=>colRef(path+'/'+p)});
   const colRef=(path,filters=[])=>{
     const query=()=>{const docs=Object.entries(data).filter(([k])=>k.startsWith(path+'/')&&!k.slice(path.length+1).includes('/'))
       .filter(([,d])=>filters.every(([f,op,v])=>op==='=='?d[f]===v:op==='!='?d[f]!==v:true)).map(([k,d])=>snap(k.split('/').pop(),d));
       return {docs,size:docs.length,empty:!docs.length,docChanges:()=>[],metadata:{fromCache:false,hasPendingWrites:false}}};
     return {path,doc:id=>docRef(path+'/'+(id||rid())),add:async d=>{const r=docRef(path+'/'+rid());await r.set(d);return r},
-      where:(f,op,v)=>colRef(path,[...filters,[f,op,v]]),orderBy:()=>colRef(path,filters),limit:()=>colRef(path,filters),get:async()=>query(),
-      onSnapshot:fn=>{const l=()=>fn(query());listeners.add(l);setTimeout(l,0);return()=>listeners.delete(l)}};
+      where:(f,op,v)=>colRef(path,[...filters,[f,op,v]]),orderBy:()=>colRef(path,filters),limit:()=>colRef(path,filters),
+      get:async()=>{try{await loadCol(path)}catch(e){console.warn(e)}return query()},
+      onSnapshot:(fn,onErr)=>{const l=()=>fn(query());listeners.add(l);cols.add(path);loadCol(path).then(()=>l(),e=>{console.warn(e);l();onErr?.(e)});return()=>{listeners.delete(l)}}};
   };
-  return {doc:docRef,collection:colRef};
+  return {doc:docRef,collection:colRef,sync};
 }
-function localUser(db){
-  let id;try{id=localStorage.getItem('sundae-quest-uid')}catch{}
-  if(!id){id='u_'+Math.random().toString(36).slice(2,12);try{localStorage.setItem('sundae-quest-uid',id)}catch{}}
+function remoteUser(db){
+  const id=authInfo?.uid||null;
   const nameOf=async i=>(await db.doc('players/'+i).get()).data()?.name||'';
-  return {id:async()=>id,me:async()=>({id,name:await nameOf(id)}),
+  return {id:async()=>id,me:async()=>({id,name:authInfo?.name||''}),
     profiles:async ids=>Object.fromEntries(await Promise.all(ids.map(async i=>[i,{id:i,name:await nameOf(i),isMe:i===id}])))};
+}
+/* ---------- 입장: 닉네임 + PIN ---------- */
+function openAuth(){
+  return new Promise(resolve=>{
+    const d=$('#authdlg');
+    $('#auth-form').onsubmit=async e=>{e.preventDefault();const nick=$('#auth-nick').value.trim(),pin=$('#auth-pin').value.trim();$('#auth-msg').textContent='확인 중…';
+      try{const r=await fetch(DBBASE+'/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nick,pin})});const j=await r.json();
+        if(!r.ok)throw new Error(j.error||'입장 실패');authInfo={nick,pin,uid:j.uid,name:j.name};try{localStorage.setItem(AUTHKEY,JSON.stringify(authInfo))}catch{}
+        d.close();toast(j.isNew?`${j.name} 첫 입장! 캐릭터를 꾸며요`:`${j.name} 다시 왔군`);resolve(true)}
+      catch(err){$('#auth-msg').textContent=err.message}};
+    $('#auth-skip').onclick=()=>{d.close();resolve(false)};
+    d.showModal();
+  });
+}
+/* 옛 localStorage 기록을 서버로(한 번만). ponytail: 내 기록만 옮기고 내 uid로 바꿔 씀 */
+async function migrateLocal(){
+  let old={},oldUid='';try{old=JSON.parse(localStorage.getItem('sundae-quest')||'{}');oldUid=localStorage.getItem('sundae-quest-uid')||''}catch{}
+  const entries=Object.entries(old).filter(([p])=>!p.startsWith('players/'));if(!entries.length||!uid)return;
+  $('#migrate-btn').disabled=true;$('#migrate-btn').textContent='올리는 중…';
+  let ok=0,fail=0;
+  for(let [path,doc] of entries){
+    doc={...doc};if(doc.by===oldUid)doc.by=uid;if(doc.clearedBy===oldUid)doc.clearedBy=uid;
+    if(doc.votes&&doc.votes[oldUid]!==undefined){doc.votes={...doc.votes,[uid]:doc.votes[oldUid]};delete doc.votes[oldUid]}
+    if(path.includes('/scores/')&&path.endsWith('__'+oldUid))path=path.slice(0,-oldUid.length)+uid;
+    if(!path.startsWith('menus/'))continue;
+    try{await db.doc(path).set(doc);ok++}catch(e){fail++;console.warn('migrate',path,e)}
+  }
+  const pm=old['players/'+oldUid];if(pm?.avatar)await saveMe({avatar:{...me.avatar,...pm.avatar}}).catch(()=>{});
+  try{localStorage.removeItem('sundae-quest')}catch{}
+  $('#migrate-btn').hidden=true;toast(`옛 기록 ${ok}건 올림${fail?`, ${fail}건 실패`:''}`);render();scheduleXP();
 }
 
 /* ---------- 부트 ---------- */
 async function boot(){
   renderSelect();
-  db=localDB();user=localUser(db);uid=await user.id();
-  const pd=(await db.doc('players/'+uid).get()).data();if(pd){me={...me,...pd,avatar:{...me.avatar,...(pd.avatar||{})}}}
-  $('#hud-me').value=me.name;renderChar();
-  $('#hud-me').addEventListener('change',e=>{saveMe({name:e.target.value.trim()||'PLAYER 1'});render()});
+  db=remoteDB(DBBASE);
+  if(!authInfo)await openAuth();
+  user=remoteUser(db);uid=await user.id();
+  if(uid){const pd=(await db.doc('players/'+uid).get()).data();if(pd){me={...me,...pd,avatar:{...me.avatar,...(pd.avatar||{})}}}if(!me.name)me.name=authInfo.name}
+  $('#hud-me').textContent=uid?(me.name||authInfo.name):'GUEST';$('#hud-out').textContent=uid?'나가기':'입장';renderChar();
+  $('#hud-out').onclick=async()=>{if(uid){try{localStorage.removeItem(AUTHKEY)}catch{}location.reload()}else{if(await openAuth())location.reload()}};
+  $('#login-note').textContent=uid?'기록은 서버에 저장돼요. 다른 기기에서도 같은 닉네임·PIN으로 입장하면 그대로 이어져요.':'구경만 하는 중. 기록하려면 오른쪽 위 "입장"을 눌러요.';
   menusUnsub=db.collection('menus').onSnapshot(s=>{customs=s.docs.map(d=>({id:d.id,...d.data()}));if(!menu)renderSelect();scheduleXP()});
   const fromHash=()=>{const h=location.hash.slice(1);if(/^[a-z0-9_]+$/i.test(h)&&h!==menu?.id)enter(h)};
   window.addEventListener('hashchange',fromHash);fromHash();
+  try{const n=Object.keys(JSON.parse(localStorage.getItem('sundae-quest')||'{}')).filter(k=>k.startsWith('menus/')).length;if(uid&&n){$('#migrate-btn').hidden=false;$('#migrate-btn').textContent=`⬆ 이 브라우저의 옛 기록 ${n}건 서버로 올리기`;$('#migrate-btn').onclick=migrateLocal}}catch{}
 }
 boot();
 </script>

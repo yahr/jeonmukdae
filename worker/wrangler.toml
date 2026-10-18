@@ -2,3 +2,12 @@ name = "jeonmukdae-api"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
 workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jeonmukdae-db"
+database_id = "18a8d01d-17d8-43e4-a501-a0684c84b1a9"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "jeonmukdae-photos"
