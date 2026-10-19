@@ -432,7 +432,7 @@ function renderMap(){
   const owned={};
   Object.entries(gu).forEach(([g,v])=>{const [owner,cnt]=Object.entries(v.n).sort((a,b)=>b[1]-a[1])[0];owned[owner]=(owned[owner]||0)+1;
     const lat=v.pts.reduce((a,p)=>a+p[0],0)/v.pts.length,lng=v.pts.reduce((a,p)=>a+p[1],0)/v.pts.length;const c=factionColor(owner);
-    L.circle([lat,lng],{radius:700+Math.min(5,v.pts.length)*250,color:c,weight:3,dashArray:'6 4',fillColor:c,fillOpacity:.18}).bindTooltip(`⚑ ${esc(g)} · <span data-uid="${esc(owner)}">…</span> 세력 ${cnt}곳`,{className:'terr',direction:'center',permanent:true}).addTo(mapLayer)});
+    L.circle([lat,lng],{radius:700+Math.min(5,v.pts.length)*250,color:c,weight:3,dashArray:'6 4',fillColor:c,fillOpacity:.18}).bindTooltip(`⚑ ${esc(g)} · <span data-uid="${esc(owner)}">…</span> 세력 ${cnt}곳`,{className:'terr',direction:'bottom',offset:[0,12],permanent:true}).addTo(mapLayer)});
   if(list.length)map.fitBounds(list.map(sp=>[sp.place.y,sp.place.x]),{padding:[40,40],maxZoom:14});
   $('#map-legend').innerHTML=ids.length?ids.map(id=>`<span><i style="background:${factionColor(id)}"></i><span data-uid="${esc(id)}">…</span>${id===uid?'(나)':''} · 깃발 ${list.filter(s=>s.by===id).length} · 점령 ${owned[id]||0}구</span>`).join(''):'<span class="sub">아직 깃발이 없어요. 내 주변 도전자에서 가게를 골라 격파하면 여기 꽂혀요.</span>';
   resolveNames();
