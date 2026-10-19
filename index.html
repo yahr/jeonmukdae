@@ -6,6 +6,8 @@
 <title>전국먹자대회</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Do+Hyeon&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 /* 레이아웃: 아케이드 캐비닛 한 화면. 메뉴 선택(격투게임 캐릭터 셀렉트) → 도장(다음 미션 · 실시간 랭킹 · 격파 등록) */
 :root{
@@ -137,6 +139,18 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .trophy[data-proof]{cursor:pointer}.trophy[data-proof]:hover .meta{color:var(--y)}
 .trophy img,.trophy .noproof{width:64px;height:64px;object-fit:cover;border:3px solid var(--y);box-shadow:3px 3px 0 var(--shadow);image-rendering:auto}
 .trophy .noproof{display:grid;place-items:center;text-align:center;font-family:var(--px);font-size:8px;color:var(--dim);border-color:var(--dim)}
+/* 토벌 지도: 옛 지도 느낌(세피아) + 픽셀 깃발 */
+#map{height:380px;border:4px solid var(--fg);box-shadow:6px 6px 0 var(--shadow);background:#2b2416}
+#map .leaflet-tile-pane{filter:sepia(.95) saturate(.55) contrast(1.05) brightness(.72)}
+#map .leaflet-control-attribution{font-size:9px;background:#f5f0dcbb}
+.flag{position:relative;width:34px;height:34px;display:grid;place-items:center;font-size:22px;line-height:1;background:var(--fg);border:3px solid var(--fc,#ffd23f);box-shadow:3px 3px 0 var(--shadow);transform:translate(-17px,-30px)}
+.flag::after{content:"";position:absolute;left:11px;bottom:-11px;border:6px solid transparent;border-top-color:var(--fc,#ffd23f)}
+.flag.mine{outline:3px dashed var(--g);outline-offset:1px}
+.flaglbl{font-family:var(--ko);font-size:13px;background:#07061add;color:var(--fg);padding:2px 6px;border:2px solid var(--fg);white-space:nowrap}
+.leaflet-tooltip.terr{font-family:var(--ko);font-size:15px;background:#3a0e24;color:var(--y);border:3px solid var(--m);box-shadow:3px 3px 0 var(--shadow);border-radius:0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:15px}
+.legend span i{display:inline-block;width:12px;height:12px;margin-right:5px;border:2px solid #000;vertical-align:-1px}
+@media (max-width:560px){#map{height:300px}}
 /* 시즌 배너 */
 .season{position:relative;overflow:hidden;background:#3a0e24;border:4px solid var(--m);box-shadow:8px 8px 0 var(--shadow);padding:18px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
 .season>:not(.stripes){position:relative;z-index:1}
@@ -234,6 +248,12 @@ footer{color:var(--dim);font-size:14px;text-align:center}
       <div id="next"></div>
     </div>
 
+    <div class="panel stack conquest">
+      <div class="hud"><h2>CONQUEST MAP</h2><span class="px sub">토벌 지도 · 구(區)마다 격파 최다 세력이 점령</span></div>
+      <div id="map"></div>
+      <div class="legend" id="map-legend"></div>
+      <div class="sub" style="font-size:14px">가게 검색으로 등록한 격파만 지도에 떠요. 같은 구에서 격파 수가 가장 많은 플레이어가 그 구의 주인이에요.</div>
+    </div>
     <div class="panel stack">
       <div class="hud"><h2>RANKING</h2><button class="px sub" id="rank-scope" type="button" style="background:none;border:0;cursor:pointer;color:var(--dim)">6각 합계 · 실시간</button></div>
       <div id="ranking"></div>
@@ -392,6 +412,31 @@ function ranked(){
     return {...sp,n,avg,total:avg.reduce((a,b)=>a+b,0),mine:ss.find(x=>x.by===uid),raters:ss.map(x=>x.by)};
   }).sort((a,b)=>b.total-a.total||b.n-a.n||(a.t||0)-(b.t||0));
 }
+/* ---------- 토벌 지도: 격파 매장 깃발 + 구(區) 영토. ponytail: 구 경계 폴리곤 대신 중심 원, 좌표는 가게 검색으로 등록한 것만 ---------- */
+const FACTION=['#ffd23f','#3ee8ff','#ff4fa3','#5dff7a','#ff9f43','#c77dff','#ff6b6b','#48dbfb'];
+const factionColor=id=>{let h=0;for(const c of String(id||''))h=(h*31+c.charCodeAt(0))>>>0;return FACTION[h%FACTION.length]};
+const guOf=sp=>{const a=(sp.place?.addr||sp.region||'').split(' ');return a.length>=2?a[0]+' '+a[1]:a[0]||''};
+let map=null,mapLayer=null;
+function renderMap(){
+  if(!window.L||!$('#map')||$('#dojo').hidden)return;
+  if(!map){map=L.map('map',{zoomControl:true,attributionControl:true,scrollWheelZoom:false}).setView([36.5,127.8],7);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);mapLayer=L.layerGroup().addTo(map)}
+  mapLayer.clearLayers();
+  const list=ranked().filter(sp=>sp.place?.x&&sp.place?.y);
+  const names={};const ids=[...new Set(list.map(s=>s.by))];
+  // 깃발
+  list.forEach(sp=>{const c=factionColor(sp.by);const m=L.marker([sp.place.y,sp.place.x],{icon:L.divIcon({className:'',html:`<div class="flag ${sp.by===uid?'mine':''}" style="--fc:${c}">🚩</div>`,iconSize:[0,0]})});
+    m.bindTooltip(`<span class="flaglbl">${esc(sp.name)} · ${sp.total.toFixed(1)}</span>`,{direction:'top',offset:[0,-34],permanent:false,className:'flagtip'});m.on('click',()=>openDetail(sp.id));mapLayer.addLayer(m)});
+  // 영토: 구별 최다 세력
+  const gu={};list.forEach(sp=>{const g=guOf(sp);if(!g)return;(gu[g]??={n:{},pts:[]});gu[g].n[sp.by]=(gu[g].n[sp.by]||0)+1;gu[g].pts.push([sp.place.y,sp.place.x])});
+  const owned={};
+  Object.entries(gu).forEach(([g,v])=>{const [owner,cnt]=Object.entries(v.n).sort((a,b)=>b[1]-a[1])[0];owned[owner]=(owned[owner]||0)+1;
+    const lat=v.pts.reduce((a,p)=>a+p[0],0)/v.pts.length,lng=v.pts.reduce((a,p)=>a+p[1],0)/v.pts.length;const c=factionColor(owner);
+    L.circle([lat,lng],{radius:700+Math.min(5,v.pts.length)*250,color:c,weight:3,dashArray:'6 4',fillColor:c,fillOpacity:.18}).bindTooltip(`⚑ ${esc(g)} · <span data-uid="${esc(owner)}">…</span> 세력 ${cnt}곳`,{className:'terr',direction:'center',permanent:true}).addTo(mapLayer)});
+  if(list.length)map.fitBounds(list.map(sp=>[sp.place.y,sp.place.x]),{padding:[40,40],maxZoom:14});
+  $('#map-legend').innerHTML=ids.length?ids.map(id=>`<span><i style="background:${factionColor(id)}"></i><span data-uid="${esc(id)}">…</span>${id===uid?'(나)':''} · 깃발 ${list.filter(s=>s.by===id).length} · 점령 ${owned[id]||0}구</span>`).join(''):'<span class="sub">아직 깃발이 없어요. 내 주변 도전자에서 가게를 골라 격파하면 여기 꽂혀요.</span>';
+  resolveNames();
+}
 function render(){
   if(!menu)return;
   const list=ranked();
@@ -423,7 +468,7 @@ function render(){
   const cl=(sn0?cleared.filter(m=>inSeason(m,sn0)):cleared).sort((a,b)=>(b.clearedAt||0)-(a.clearedAt||0)).slice(0,5);
   $('#cleared').innerHTML=cl.length?`<div class="px sub" style="margin:14px 0 6px">🏆 격파된 도발</div>`+cl.map(m=>`<div class="trophy" ${m.proof?`data-proof="${m.id}" role="button" tabindex="0"`:''}>${m.proof?`<img src="${m.proof}" alt="">`:`<div class="noproof">NO<br>PHOTO</div>`}<div class="meta"><span data-uid="${esc(m.clearedBy||'')}">…</span> ▶ <span data-uid="${esc(m.by)}">…</span>의 “${esc(m.title)}” 격파${m.proof?' · 인증샷 보기':''}</div></div>`).join(''):'';
 
-  renderPlaceSelect();resolveNames();scheduleXP();
+  renderPlaceSelect();resolveNames();scheduleXP();renderMap();
 }
 async function resolveNames(){
   const els=[...document.querySelectorAll('[data-uid]')];if(!els.length)return;
