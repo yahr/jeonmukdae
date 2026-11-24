@@ -18,3 +18,6 @@ CREATE TABLE IF NOT EXISTS players (
 
 -- 캐릭터 생성 횟수(KST 날짜별). Worker가 없으면 만든다
 CREATE TABLE IF NOT EXISTS gens (day TEXT, uid TEXT, n INTEGER, PRIMARY KEY (day, uid));
+
+-- 유료 플랜(캐릭터 무제한 변경 등). 운영자가 wrangler d1 execute 로 넣는다. until 은 ms(없으면 무기한)
+CREATE TABLE IF NOT EXISTS plans (uid TEXT PRIMARY KEY, plan TEXT NOT NULL, until INTEGER);

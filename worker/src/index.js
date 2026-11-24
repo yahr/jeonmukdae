@@ -164,8 +164,24 @@ async function handleDb(env, request, url, origin) {
 }
 
 /* ---------- 캐릭터 생성: Gemini(키는 Worker secret GEMINI_API_KEY) ---------- */
-// ponytail: 하루 횟수는 D1 gens 표(사람마다 PER_UID, 전체 PER_DAY). 실패하면 횟수를 돌려준다.
-const PER_UID = 4, PER_DAY = 30; // 2026-11-24 사용자 결정: 전체 하루 30장(최악 월 약 $60)
+// 횟수는 D1 gens 표(날짜·사람별). 실패하면 횟수를 돌려준다.
+// 2026-11-24 사용자 결정: 무료 사용자는 사람마다 평생 FREE_TOTAL번, 전체 하루 PER_DAY장(최악 월 약 $60).
+// 유료 플랜(plans 표에 uid가 있고 기한 안)이면 사람별 평생 제한 없이 PAID_PER_DAY까지. 유료 등록: wrangler d1 execute로 plans에 넣는다.
+const FREE_TOTAL = 2, PER_DAY = 30, PAID_PER_DAY = 10;
+async function genQuota(env, uid) {
+  const day = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  await env.DB.batch([
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS gens (day TEXT, uid TEXT, n INTEGER, PRIMARY KEY (day, uid))"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS plans (uid TEXT PRIMARY KEY, plan TEXT NOT NULL, until INTEGER)"),
+  ]);
+  const plan = await env.DB.prepare("SELECT plan FROM plans WHERE uid=? AND (until IS NULL OR until>?)").bind(uid, Date.now()).first();
+  const total = (await env.DB.prepare("SELECT SUM(n) s FROM gens WHERE uid=?").bind(uid).first())?.s || 0;
+  const today = (await env.DB.prepare("SELECT n FROM gens WHERE day=? AND uid=?").bind(day, uid).first())?.n || 0;
+  const all = (await env.DB.prepare("SELECT SUM(n) s FROM gens WHERE day=?").bind(day).first())?.s || 0;
+  const paid = !!plan;
+  const left = paid ? Math.max(0, PAID_PER_DAY - today) : Math.max(0, FREE_TOTAL - total);
+  return { day, paid, plan: plan?.plan || null, left, used: total, limit: paid ? null : FREE_TOTAL, dayFull: !paid && all >= PER_DAY };
+}
 const AV_OK = { hair: ["short", "long", "bun", "mohawk", "bald"], acc: ["none", "band", "glasses", "cap", "towel", "chop", "apron", "ikseon"] };
 async function handleAvatar(env, request) {
   const uid = await auth(env, request);
@@ -177,12 +193,9 @@ async function handleAvatar(env, request) {
   const lv = Math.max(0, Math.min(5, lvl | 0));
   const m = typeof image === "string" ? /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(image) : null;
   if (image && (!m || m[2].length > 2_000_000)) return json({ error: "사진은 2MB 이하 이미지만" }, 400);
-  const day = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-  await env.DB.prepare("CREATE TABLE IF NOT EXISTS gens (day TEXT, uid TEXT, n INTEGER, PRIMARY KEY (day, uid))").run();
-  const mine = (await env.DB.prepare("SELECT n FROM gens WHERE day=? AND uid=?").bind(day, uid).first())?.n || 0;
-  const all = (await env.DB.prepare("SELECT SUM(n) s FROM gens WHERE day=?").bind(day).first())?.s || 0;
-  if (mine >= PER_UID) return json({ error: `오늘은 캐릭터를 ${PER_UID}번 다 그렸어요. 내일 다시 그려요` }, 429);
-  if (all >= PER_DAY) return json({ error: "오늘 캐릭터 그리기가 꽉 찼어요. 내일 다시 그려요" }, 429);
+  const q = await genQuota(env, uid), day = q.day;
+  if (q.left <= 0) return json({ error: q.paid ? `오늘은 캐릭터를 ${PAID_PER_DAY}번 다 그렸어요. 내일 다시 그려요` : `캐릭터는 ${FREE_TOTAL}번까지 만들 수 있어요. 이미 ${FREE_TOTAL}번 다 만들었어요`, quota: q }, 429);
+  if (q.dayFull) return json({ error: "오늘 캐릭터 그리기가 꽉 찼어요. 내일 다시 그려요", quota: q }, 429);
   const bump = (d) => env.DB.prepare("INSERT INTO gens (day,uid,n) VALUES (?,?,?) ON CONFLICT(day,uid) DO UPDATE SET n=n+?").bind(day, uid, d, d).run();
   await bump(1);
   try {
@@ -195,7 +208,7 @@ async function handleAvatar(env, request) {
     const j = await r.json();
     const img = (j.candidates || []).flatMap((c) => c.content?.parts || []).find((p) => p.inlineData)?.inlineData;
     if (!r.ok || !img) throw new Error(j.error?.message || "그림이 안 왔어요");
-    return json({ mime: img.mimeType, data: img.data, left: PER_UID - mine - 1 });
+    return json({ mime: img.mimeType, data: img.data, left: q.left - 1, limit: q.limit, paid: q.paid });
   } catch (e) {
     await bump(-1);
     return json({ error: "캐릭터를 못 그렸어요. 잠시 후 다시 해 봐요", detail: String(e).slice(0, 200) }, 502);
@@ -216,6 +229,7 @@ export default {
     }
     if (url.pathname === "/auth" && request.method === "POST") return handleAuth(env, request);
     if (url.pathname === "/avatar/gen" && request.method === "POST") return handleAvatar(env, request);
+    if (url.pathname === "/avatar/quota") { const uid = await auth(env, request); return uid ? json(await genQuota(env, uid)) : json({ error: "입장 필요" }, 401); }
     if (url.pathname.startsWith("/db/")) return handleDb(env, request, url, origin);
 
     if (request.method !== "GET") return json({ error: "GET only" }, 405);

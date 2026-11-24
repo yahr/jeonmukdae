@@ -15,3 +15,7 @@ bucket_name = "jeonmukdae-photos"
 # 캐릭터 생성 모델: /v1beta/models 목록에서 이미지 출력 모델을 확인하고 고른 값(2026-11-24). 키는 secret GEMINI_API_KEY
 [vars]
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image"
+
+# Gemini API가 일부 지역(Cloudflare 엣지 위치)을 막아서 미국 리전에서 실행(2026-11-24 "User location is not supported" 확인)
+[placement]
+region = "gcp:us-central1"
