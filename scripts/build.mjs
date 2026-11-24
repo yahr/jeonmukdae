@@ -275,8 +275,11 @@ export function build() {
 
   const game = readFileSync(join(ROOT, "index.html"), "utf8");
   if (!game.includes("<!--SEO-->")) { console.error("index.html에 <!--SEO--> 자리가 없어요"); process.exit(1); }
-  const links = `<div class="panel stack"><div class="hud"><h2>OFFICIAL DOJOS</h2><span class="px sub">부문·도장 안내</span></div><ul class="seo-links">${data.divisions.map((dv) =>
-    `<li><a href="division/${dv.slug}/">${esc(dv.emoji)} ${esc(dv.name)} 부문</a> · ${data.dojos.filter((d) => d.division === dv.slug).sort((a, b) => a.order - b.order).map((d) => `<a href="dojo/${d.slug}/">${esc(fullName(d))}</a>`).join(" · ")}</li>`).join("")}</ul></div>`;
+  // 메인 맨 아래 작은 바닥글 한 줄: 검색엔진이 부문·도장 페이지를 찾게 링크만 둔다(패널 아님)
+  const links = `<footer class="seo-foot">부문·도장 안내: ${data.divisions.map((dv) => {
+    const ds = data.dojos.filter((d) => d.division === dv.slug).sort((a, b) => a.order - b.order);
+    return `<a href="division/${dv.slug}/">${esc(dv.name)}</a>${ds.length ? ` (${ds.map((d) => `<a href="dojo/${d.slug}/">${esc(fullName(d))}</a>`).join(" · ")})` : ""}`;
+  }).join(" · ")}</footer>`;
   write("index.html", game.replace("<!--SEO-->", homeHead(data)).replace("<!--DOJO-LINKS-->", links));
   cpSync(join(ROOT, "assets"), join(OUT, "assets"), { recursive: true });
   cpSync(join(ROOT, "data"), join(OUT, "data"), { recursive: true });
