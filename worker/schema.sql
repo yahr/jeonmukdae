@@ -15,3 +15,6 @@ CREATE TABLE IF NOT EXISTS players (
   pinhash TEXT NOT NULL,
   t INTEGER NOT NULL
 );
+
+-- 캐릭터 생성 횟수(KST 날짜별). Worker가 없으면 만든다
+CREATE TABLE IF NOT EXISTS gens (day TEXT, uid TEXT, n INTEGER, PRIMARY KEY (day, uid));

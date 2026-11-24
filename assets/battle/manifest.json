@@ -1,10 +1,57 @@
 {
   "jjinmandu": {
-    "villain": "jjinmandu-villain.webp",
+    "villain": {
+      "idle": {
+        "src": "jjinmandu-villain-idle.webp",
+        "w": 103,
+        "h": 109
+      },
+      "taunt": {
+        "src": "jjinmandu-villain-taunt.webp",
+        "w": 109,
+        "h": 94
+      },
+      "special": {
+        "src": "jjinmandu-villain-special.webp",
+        "w": 116,
+        "h": 112
+      },
+      "win": {
+        "src": "jjinmandu-villain-win.webp",
+        "w": 114,
+        "h": 97
+      }
+    },
     "dumpling": "jjinmandu-dumpling.webp",
     "steamer": "jjinmandu-steamer.webp",
     "bag": "jjinmandu-bag.webp",
     "ko": "jjinmandu-ko.webp"
   },
-  "_model": "gemini-3-pro-image"
+  "player": {
+    "idle": {
+      "src": "player-idle.webp",
+      "w": 76,
+      "h": 113
+    },
+    "bite": {
+      "src": "player-bite.webp",
+      "w": 65,
+      "h": 113
+    },
+    "hit": {
+      "src": "player-hit.webp",
+      "w": 77,
+      "h": 114
+    },
+    "ko": {
+      "src": "player-ko.webp",
+      "w": 113,
+      "h": 88
+    }
+  },
+  "_models": {
+    "dumpling·steamer·bag·ko": "gemini-3-pro-image",
+    "jjinmandu villain": "gemini-3-pro-image",
+    "player(기본)": "gemini-3.1-flash-image"
+  }
 }

@@ -4,8 +4,9 @@
 - 외부 매장 사진은 입력으로 넣지 않는다. 글로 된 프롬프트만 쓴다.
 - 투명 배경 대신 마젠타(#FF00FF) 바탕으로 그리게 하고 여기서 지운 뒤, 최근접 축소로 픽셀을 살린다.
 - 만든 그림은 사람이 보고 표정(행복해야 함)을 검수한다. 마음에 안 들면 그 이름만 다시: npm run art -- villain
+- 2x2 표정 시트(SHEETS)는 assets/sprite.js 의 sheetFrames 로 자른다(브라우저와 같은 코드). 기존 시트 파일을 자르기만: --from=시트.png
 """
-import base64, json, pathlib, sys, urllib.request, io
+import base64, json, pathlib, subprocess, sys, urllib.request, io
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -29,6 +30,39 @@ ART = {
            "Feels like a happy, full-bellied defeat. Draw it as a wide banner illustration that fills the frame edge to edge "
            "(for this one the background is the warm scene itself, not magenta).", "16:9", 360),
 }
+
+
+# 2x2 표정 시트: 이름 → (manifest 위치, 프레임 이름들, 프롬프트 만드는 법, 모델 선호)
+VILLAIN_PROMPT = (ROOT / "scripts/prompts/villain-jjinmandu.txt")
+SHEETS = {
+    "villain-sheet": (("jjinmandu", "villain"), ["idle", "taunt", "special", "win"], lambda: VILLAIN_PROMPT.read_text()),
+    "player-default": (("player",), ["idle", "bite", "hit", "ko"], lambda: node_eval("m.playerPrompt({skin:0,hair:'short',hairc:0,acc:'none'},0)")),
+}
+
+
+def node_eval(expr, stdin=None):
+    js = f"const m=await import({json.dumps((ROOT / 'assets/sprite.js').as_uri())});const c=[];for await(const d of process.stdin)c.push(d);const input=Buffer.concat(c);process.stdout.write(String(await ({expr})))"
+    return subprocess.run(["node", "--input-type=module", "-e", js], input=stdin or b"", capture_output=True, check=True).stdout.decode()
+
+
+def slice_sheet(im, scale=4):
+    im = im.convert("RGBA")
+    out = node_eval(f"JSON.stringify(m.sheetFrames(new Uint8ClampedArray(input),{im.width},{im.height},{{scale:{scale}}}).map(f=>({{w:f.w,h:f.h,d:Buffer.from(f.data).toString('base64')}})))", im.tobytes())
+    return [Image.frombytes("RGBA", (f["w"], f["h"]), base64.b64decode(f["d"])) for f in json.loads(out)]
+
+
+def save_sheet(name, im, manifest):
+    where, names, _ = SHEETS[name]
+    files = {}
+    for pose, fr in zip(names, slice_sheet(im)):
+        f = f"{'-'.join(where)}-{pose}.webp"
+        fr.save(OUT / f, "WEBP", lossless=True)
+        files[pose] = {"src": f, "w": fr.width, "h": fr.height}
+        print("저장:", f, fr.size)
+    node = manifest
+    for k in where[:-1]:
+        node = node.setdefault(k, {})
+    node[where[-1]] = files
 
 
 def key():
@@ -86,13 +120,18 @@ def key_out(im):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     want = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--model=")), None)
-    k = key()
-    model = pick_model(k, want)
+    src = any(a.startswith("--from=") for a in sys.argv[1:])
+    k = None if src else key()
+    model = "(기존 시트)" if src else pick_model(k, want)
     print("모델:", model)
     OUT.mkdir(parents=True, exist_ok=True)
     mf = OUT / "manifest.json"
     manifest = json.loads(mf.read_text()) if mf.exists() else {}
-    for name in args or ART:
+    src = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--from=")), None)
+    for name in [a for a in args if a in SHEETS]:
+        im = Image.open(src) if src else generate(k, model, SHEETS[name][2](), "1:1")
+        save_sheet(name, im, manifest)
+    for name in [a for a in args if a not in SHEETS] if args else ART:
         div, desc, ratio, width = ART[name]
         im = generate(k, model, f"{desc} {STYLE}", ratio)
         im = key_out(im)  # ko 장면도 모델이 마젠타 테두리를 남기는 일이 있어 같이 지운다
@@ -102,7 +141,9 @@ def main():
         im.save(OUT / f, "WEBP", lossless=True)
         manifest.setdefault(div, {})[name] = f
         print("저장:", f, im.size)
-    manifest["_model"] = model
+    if not src:
+        for name in args or ART:
+            manifest.setdefault("_models", {})[name] = model
     mf.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
 
 

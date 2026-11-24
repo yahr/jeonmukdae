@@ -180,6 +180,9 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .designer .charav{border-width:4px;padding:8px}
 .charav svg,#hud-av svg,.lvlup svg{image-rendering:pixelated;shape-rendering:crispEdges}
 #hud-av svg{width:30px;height:40px;vertical-align:middle;margin-right:6px}
+.spr{image-rendering:pixelated;height:auto;display:block}.charav .spr{max-width:100%}
+#hud-av .spr{width:auto;height:44px;display:inline-block;vertical-align:middle;margin-right:6px}.lvlup .spr{width:auto;height:min(46vh,340px);margin:0 auto}
+.dsg-note{font-size:13px;color:var(--dim);margin-top:6px;word-break:keep-all}.consent{display:flex;gap:8px;align-items:flex-start;font-size:14px;word-break:keep-all}.consent input{margin-top:3px}
 .xpbar{height:12px;border:3px solid var(--fg);background:var(--bg);padding:2px}
 .xpbar div{height:100%;background:var(--g);transition:width .6s steps(12)}
 .god .xpbar div{background:linear-gradient(90deg,var(--y),#fff,var(--y))}
@@ -192,7 +195,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .lvlup{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(7,6,26,.88);text-align:center;cursor:pointer}
 .lvlup h2{font-family:var(--px);font-size:clamp(16px,4vw,28px);color:var(--y);text-shadow:4px 4px 0 var(--m);animation:vs .6s cubic-bezier(.2,1.6,.4,1) both}
 .char{position:relative}
-@media (max-width:560px){.designer{grid-template-columns:1fr}.char{grid-template-columns:60px 1fr;gap:10px;padding:10px 12px}.char .charav svg{width:52px;height:70px}
+@media (max-width:560px){.designer{grid-template-columns:1fr}.char{grid-template-columns:60px 1fr;gap:10px;padding:10px 12px}.char .charav svg{width:52px;height:70px}.char .charav .spr{width:52px}
   #char-edit{position:absolute;right:10px;top:10px;font-size:13px;padding:4px 8px}.char .hud{padding-right:84px}#char-xp{font-size:9px}#char-src{font-size:13px}}
 .cam{position:relative;background:#000;border:3px solid var(--fg);aspect-ratio:4/3;max-width:100%;display:grid;place-items:center;overflow:hidden}
 .cam video,.cam img{width:100%;height:100%;object-fit:cover}
@@ -450,7 +453,7 @@ async function startBattle(t){
     const [core,ui]=await Promise.all([coreMod??=import('./assets/battle-core.js'),import('./assets/battle.js')]);
     const lvl=lvlOf(xp.total);
     ui.openBattle({div:m.id,target:t,axes,emoji:m.e,koLine:div?.koLine||`오늘 나는 ${m.name}에게 졌다`,
-      stats:core.statsFor({stats:t.stats,axes,players:t.players}),avatar:h=>avatarSVG(me.avatar,lvl,130,h),
+      stats:core.statsFor({stats:t.stats,axes,players:t.players}),player:spriteOf(me.avatar,lvl),avatar:h=>avatarSVG(me.avatar,lvl,130,h),
       onKO:async({bites})=>{
         if(!db||!uid||!authInfo)return {saved:false,note:'입장(닉네임·PIN)하면 이 KO가 빌런 순위에 올라가요'};
         const ref=db.doc(`menus/${m.id}/kos/${t.key}__${uid}`),prev=(await ref.get()).data(),sn=seasonOf(m.id);
@@ -880,9 +883,44 @@ function avatarSVG(av,lvl,size,happy){ // happy: 행복 KO 얼굴(감은 눈 웃
     f2+=R(14,-1,20,1,'#fff6c2')+R(16,-5,1,1,'#fff')+R(24,-7,1,1,'#fff')+R(32,-5,1,1,'#fff')}
   return `<svg viewBox="-2 -12 52 70" width="${size}" height="${Math.round(size*70/52)}" aria-label="내 캐릭터"><g transform="scale(2)">${s}</g>${f}<g transform="scale(2)">${acc}</g>${f2}</svg>`;
 }
+/* ---------- 고화질 전신 캐릭터(Gemini 2x2 표정 시트 → 프레임 4장). 없거나 실패하면 avatarSVG ----------
+   손님 기본 모양은 assets/battle/player-*.webp(개발 때 생성), 입장한 사람은 Worker /avatar/gen 으로 그리고 players/{uid}.sprite 에 저장 */
+const POSES=['idle','bite','hit','ko'],DEFAULT_AV={skin:0,hair:'short',hairc:0,acc:'none'};
+const SIG=(av,lvl)=>['v1',av.skin,av.hair,av.hairc,av.acc,lvl].join('-'); // assets/sprite.js spriteSig 와 같게
+let artMf=null;const loadMf=async()=>artMf??=await fetch('assets/battle/manifest.json').then(r=>r.ok?r.json():{}).catch(()=>({}));
+function spriteOf(av,lvl){
+  const sig=SIG(av,lvl),sp=me.sprite;
+  if(sp?.sig===sig&&sp.frames?.length===4)return Object.fromEntries(POSES.map((p,i)=>[p,{src:sp.frames[i],w:sp.sizes[i][0],h:sp.sizes[i][1]}]));
+  if(sig===SIG(DEFAULT_AV,0)&&artMf?.player)return Object.fromEntries(POSES.map(p=>[p,{...artMf.player[p],src:'assets/battle/'+artMf.player[p].src}]));
+  return null;
+}
+function avatarHTML(av,lvl,size,pose='idle'){
+  const f=spriteOf(av,lvl)?.[pose];
+  return f?`<img class="spr" src="${esc(f.src)}" width="${size}" height="${Math.round(size*f.h/f.w)}" alt="내 캐릭터" draggable="false">`:avatarSVG(av,lvl,size,pose!=='idle');
+}
+const shrinkPhoto=img=>{const k=Math.min(1,512/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.85)};
+const blobURL=async u=>{const b=await (await fetch(u)).blob();return await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)})};
+let genBusy=false;const genFail={};
+async function ensureSprite({photo=null,loud=false}={}){
+  if(!uid||!authInfo||genBusy)return;
+  const lvl=lvlOf(xp.total),av=me.avatar,sig=SIG(av,lvl);
+  if(!photo&&(me.sprite?.sig===sig||(!me.sprite&&sig===SIG(DEFAULT_AV,0))||genFail[sig]))return; // 이미 있음·공용 기본 그림·이번 접속에서 실패
+  let image=photo,kind=photo?'photo':null;
+  if(!image&&me.sprite?.photo&&me.sprite.frames?.[0]){try{image=await blobURL(me.sprite.frames[0]);kind='ref'}catch{}} // 사진으로 만든 캐릭터는 그 얼굴을 기준으로 다시
+  genBusy=true;if(loud)toast('Gemini가 내 전신 캐릭터를 그리는 중이에요 (10~20초)');
+  try{
+    const r=await fetch(DBBASE+'/avatar/gen',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authInfo.uid}:${authInfo.pin}`},body:JSON.stringify({avatar:av,lvl,image,kind})});
+    const j=await r.json().catch(()=>({}));if(!r.ok||!j.data)throw new Error(j.error||'캐릭터 그리기 서버가 아직 준비 중이에요');
+    const fr=await (await import('./assets/sprite.js')).imageToFrames(`data:${j.mime};base64,${j.data}`);
+    await saveMe({sprite:{sig,photo:!!image,frames:fr.map(f=>f.url),sizes:fr.map(f=>[f.w,f.h]),t:Date.now()}});
+    const pd=(await db.doc('players/'+uid).get()).data();if(pd?.sprite)me.sprite=pd.sprite; // 서버가 R2 주소로 바꾼 것
+    renderChar();toast(`전신 캐릭터 완성!${j.left!=null?` 오늘 ${j.left}번 더 그릴 수 있어요`:''}`);
+  }catch(e){genFail[sig]=1;console.warn('sprite',e);if(loud)toast(e.message||'캐릭터를 못 그렸어요. 지금 모습으로 둘게요')}
+  finally{genBusy=false}
+}
 function renderChar(){
   const i=lvlOf(xp.total),L=LEVELS[i],next=LEVELS[i+1];
-  $('#char-av').innerHTML=avatarSVG(me.avatar,i,76);$('#hud-av').innerHTML=avatarSVG(me.avatar,i,28);
+  $('#char-av').innerHTML=avatarHTML(me.avatar,i,76);$('#hud-av').innerHTML=avatarHTML(me.avatar,i,28);
   $('#char-lvl').textContent=L.n;$('#char-xp').textContent=`XP ${xp.total}${next?` / 다음 띠 ${next.xp}`:' · MAX'}`;
   $('#char-bar').style.width=(next?Math.min(100,(xp.total-L.xp)/(next.xp-L.xp)*100):100)+'%';$('#char-panel').classList.toggle('god',!!L.god);$('#stat-lvl').textContent=`${L.n} XP${xp.total}`;
   const n=xp.n;$('#char-src').textContent=xp.total?`격파 ${n.spot||0} · 평가 ${n.score||0} · 도발 ${n.taunt||0} · 미션 격파 ${n.clear||0} · 행복 KO ${n.ko||0} · 투표 ${n.vote||0}`:'격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.';
@@ -901,22 +939,24 @@ async function computeXP(){
   xp={n,total:Object.entries(n).reduce((a,[k,v])=>a+v*XP_RULE[k],0)};
   const lvl=lvlOf(xp.total);renderChar();
   if(lvl>(me.lvl||0)){me.lvl=lvl;await saveMe({lvl});levelUp(lvl)}
+  ensureSprite();
 }
 function levelUp(lvl){
   const L=LEVELS[lvl];const el=document.createElement('div');el.className='lvlup';
-  el.innerHTML=`<div>${avatarSVG(me.avatar,lvl,140)}<h2>${L.god?'먹신 강림':'LEVEL UP!'}</h2><div style="font-size:24px;color:var(--fg);margin-top:8px">${esc(L.n)}</div></div>`;
+  el.innerHTML=`<div>${avatarHTML(me.avatar,lvl,140)}<h2>${L.god?'먹신 강림':'LEVEL UP!'}</h2><div style="font-size:24px;color:var(--fg);margin-top:8px">${esc(L.n)}</div></div>`;
   document.body.append(el);el.onclick=()=>el.remove();setTimeout(()=>el.remove(),2600);
 }
 async function saveMe(patch){Object.assign(me,patch);await db.doc('players/'+uid).set({...me,t:Date.now()})}
 function openDesigner(){
-  const av={...me.avatar};let name=me.name;
-  const draw=()=>{$('#dsg-prev').innerHTML=avatarSVG(av,lvlOf(xp.total),140);
+  const av={...me.avatar};let name=me.name,photoData=null; // photoData: 동의하면 생성에만 쓰고 버리는 축소 사진
+  const draw=()=>{const l=lvlOf(xp.total);$('#dsg-prev').innerHTML=avatarHTML(av,l,140)+`<div class="dsg-note">${spriteOf(av,l)?'Gemini로 그린 고화질 전신 캐릭터':'저장하면 Gemini가 이 모습으로 고화질 전신 캐릭터를 그려요(하루 4번)'}</div>`;
     document.querySelectorAll('#dsg [data-k]').forEach(b=>b.classList.toggle('on',String(av[b.dataset.k])===b.dataset.v))};
   $('#detail').innerHTML=`<div class="top"><div><span class="tape">CHARACTER DESIGN</span><h2 style="margin-top:8px">내 캐릭터 꾸미기</h2></div><button class="btn ghost" type="button" id="dlg-x">✕</button></div>
     <div class="designer" id="dsg"><div class="charav" id="dsg-prev"></div><div class="stack" style="gap:12px">
       <label><span class="px sub">이름</span><input type="text" id="dsg-name" maxlength="10" value="${esc(name)}" placeholder="먹신 후보 이름"></label>
       <div class="inline" style="align-items:center"><label class="btn sec" style="display:inline-block">📷 사진으로 만들기<input type="file" id="dsg-photo" accept="image/*" hidden></label><button class="btn" type="button" id="dsg-random">🎲 랜덤 생성</button><button class="btn ghost" type="button" id="dsg-clear" ${me.avatar.photo?'':'hidden'}>사진 빼기</button></div>
-      <div class="sub" id="dsg-hint">사진은 얼굴이 가운데 오게. 머리만 사진 픽셀로 바뀌고 몸은 도복이에요.</div>
+      <div class="sub" id="dsg-hint">사진은 얼굴이 가운데 오게. 저장하면 사진 속 얼굴을 닮은 전신 캐릭터를 그려요.</div>
+      <label class="consent" id="dsg-consent-wrap" hidden><input type="checkbox" id="dsg-consent"><span>사진을 Google Gemini로 보내 캐릭터를 그리는 데 동의해요. 사진은 그림을 만드는 데만 쓰고 서버에 저장하지 않아요.</span></label>
       <div><div class="px sub">피부</div><div class="sw">${SKINS.map((c,i)=>`<button type="button" data-k="skin" data-v="${i}" style="background:${c}"></button>`).join('')}</div></div>
       <div><div class="px sub">머리 모양</div><div class="opt">${Object.entries(HAIRS).map(([k,h])=>`<button type="button" data-k="hair" data-v="${k}">${h.n}</button>`).join('')}</div></div>
       <div><div class="px sub">머리색</div><div class="sw">${HAIRC.map((c,i)=>`<button type="button" data-k="hairc" data-v="${i}" style="background:${c}"></button>`).join('')}</div></div>
@@ -925,16 +965,17 @@ function openDesigner(){
   $('#dlg-x').onclick=()=>$('#dlg').close();
   $('#dsg').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(!b)return;av[b.dataset.k]=b.dataset.k==='skin'||b.dataset.k==='hairc'?+b.dataset.v:b.dataset.v;if(b.dataset.k==='skin'||b.dataset.k==='hair'||b.dataset.k==='hairc')delete av.photo;$('#dsg-clear').hidden=!av.photo;draw()});
   $('#dsg-random').onclick=()=>{Object.assign(av,randomAvatar());delete av.photo;$('#dsg-clear').hidden=true;$('#dsg-hint').textContent='랜덤 캐릭터! 마음에 안 들면 또 굴려요';draw()};
-  $('#dsg-clear').onclick=()=>{delete av.photo;$('#dsg-clear').hidden=true;draw()};
+  $('#dsg-clear').onclick=()=>{delete av.photo;photoData=null;$('#dsg-consent-wrap').hidden=true;$('#dsg-clear').hidden=true;draw()};
   $('#dsg-photo').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();const url=URL.createObjectURL(f);
-    img.onload=()=>{try{av.photo=photoToPixels(img);
+    img.onload=()=>{try{av.photo=photoToPixels(img);photoData=shrinkPhoto(img);$('#dsg-consent-wrap').hidden=false;
         const px=av.photo,rng=(a,b)=>Array.from({length:b-a},(_,i)=>a+i),mid=rng(Math.round(PH*.375),Math.round(PH*.625)),tr=rng(Math.round(PH*.06),Math.round(PH*.19)),tx=rng(Math.round(PH*.3),Math.round(PH*.7));
         const center=mid.flatMap(y=>mid.map(x=>px[y*PH+x])),top=tr.flatMap(y=>tx.map(x=>px[y*PH+x]));
         const sc=avgHex(center),hcx=avgHex(top);if(sc)av.skin=nearest(sc,SKINS);if(hcx)av.hairc=nearest(hcx,HAIRC);
         $('#dsg-clear').hidden=false;$('#dsg-hint').textContent='사진 머리 완성. 장식은 그대로 얹을 수 있어요';draw()}
       catch(err){toast('사진을 못 읽었어요')}URL.revokeObjectURL(url)};
     img.onerror=()=>{toast('이미지 파일이 아니에요');URL.revokeObjectURL(url)};img.src=url;e.target.value=''};
-  $('#dsg-save').onclick=async()=>{if(!guard())return;name=$('#dsg-name').value.trim()||'PLAYER 1';await saveMe({name,avatar:av});$('#hud-me').textContent=name;renderChar();$('#dlg').close();toast('캐릭터 저장. 이제 먹으러 가자');render()};
+  $('#dsg-save').onclick=async()=>{if(!guard())return;name=$('#dsg-name').value.trim()||'PLAYER 1';await saveMe({name,avatar:av});$('#hud-me').textContent=name;renderChar();$('#dlg').close();toast('캐릭터 저장. 이제 먹으러 가자');render();
+    ensureSprite({photo:photoData&&$('#dsg-consent')?.checked?photoData:null,loud:true});photoData=null};
   draw();$('#dlg').showModal();
 }
 $('#char-edit').addEventListener('click',openDesigner);
@@ -1025,7 +1066,7 @@ async function migrateLocal(){
 
 /* ---------- 부트 ---------- */
 async function boot(){
-  renderSelect();renderChar(); // 서버 응답 전에도 기본 캐릭터부터
+  await loadMf();renderSelect();renderChar(); // 서버 응답 전에도 기본 캐릭터부터
   db=remoteDB(DBBASE);
   if(!authInfo)await openAuth();
   user=remoteUser(db);uid=await user.id();

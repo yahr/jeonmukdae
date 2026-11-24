@@ -28,13 +28,15 @@
 | `content/guide/<slug>.md` | 큐레이션 글. 머리말 `title`, `description`, `date`, `dojos: slug1, slug2` |
 | `assets/battle-core.js` | 행복한 빌런 숫자 로직(게이지·콤보·KO·최강 빌런 집계). 테스트 `scripts/battle.test.mjs` |
 | `assets/battle.js` | 대결 화면 연출. 버튼 누를 때 `import()`로 불러온다(첫 로딩에 안 들어감) |
-| `assets/battle/` | Gemini로 만든 대결 그림(WebP)과 `manifest.json`(부문별). 없으면 이모지·CSS로 대신 |
+| `assets/battle/` | Gemini로 만든 대결 그림(WebP)과 `manifest.json`: 부문별 빌런 표정 4컷(idle·taunt·special·win)·소품, 손님용 기본 캐릭터 4컷 `player-*`(idle·bite·hit·ko) |
+| `assets/sprite.js` | 2x2 표정 시트 → 프레임 자르기(마젠타·후광 지우기, 픽셀 축소), 캐릭터 서명, 플레이어 프롬프트. 브라우저·Worker·`gen_art.py`가 같이 씀. 테스트 `scripts/sprite.test.mjs` |
+| `scripts/prompts/` | 빌런 시트 프롬프트(글로만, 외부 사진·원작 그림 입력 금지) |
 | `scripts/gen_art.py` | `npm run art [-- 이름]`: Gemini 이미지 모델로 대결 그림 생성. 모델은 목록에서 고름, 키는 `.env` |
 | `scripts/build.mjs` | 정적 빌드 → `_site/` (부문·도장·큐레이션 페이지, JSON-LD, sitemap, robots, llms.txt) |
 | `scripts/validate.mjs` | 데이터 검증. 오류가 있으면 빌드가 멈춘다 |
 | `scripts/og.py` | 공유 이미지 1200×630. 맥에서 돌리고 PNG를 커밋한다(Actions엔 한글 서체 없음) |
 | `scripts/add-dojo.mjs` | 카카오 로컬 검색으로 도장 하나 추가 |
-| `worker/` | Cloudflare Worker API: 카카오 중계, 닉네임+PIN 입장, D1 문서 저장, R2 사진 |
+| `worker/` | Cloudflare Worker API: 카카오 중계, 닉네임+PIN 입장, D1 문서 저장, R2 사진, `POST /avatar/gen` 전신 캐릭터 생성(Gemini, 사람당 하루 4번·전체 150번, D1 `gens`) |
 | `server.py` | 로컬 개발 서버(게임 원본 + 카카오 중계) |
 | `.github/workflows/pages.yml` | main에 푸시하면 테스트 → 빌드 → GitHub Pages 배포 |
 
@@ -46,6 +48,8 @@ npm run build                 # _site/ 만들기
 npm run add-dojo -- "검색어" --division jjinmandu --slug mandu-xxx
 npm run og                    # 공유 이미지 다시 만들기(도장을 추가했으면 필수)
 npm run art -- villain        # 대결 그림 다시 만들기(.env의 GEMINI_API_KEY). 표정이 행복한지 눈으로 검수
+npm run art -- villain-sheet  # 빌런 표정 4컷 시트(player-default = 손님 기본 캐릭터). --from=시트.png 면 자르기만
+# Worker 캐릭터 생성 키(값이 화면에 안 나오게): cd worker && grep '^GEMINI_API_KEY=' ../.env | cut -d= -f2- | tr -d "\"' \r\n" | npx wrangler secret put GEMINI_API_KEY
 cd worker && wrangler deploy  # API 고칠 때
 ```
 
@@ -68,7 +72,8 @@ cd worker && wrangler deploy  # API 고칠 때
 - [x] 정적 생성, URL 구조, 도장 페이지, JSON-LD, 메타·OG, sitemap·robots·llms.txt, 자동 배포, 찐만두 부문 데이터
 - [x] 3-8 행복한 빌런: 행복 게이지, 필살기 6종 연출(히트 스톱·흔들림·플래시·행복 +숫자·진동), 행복 KO·결과 화면, 최강 빌런 순위(`menus/<부문>/kos/<가게>__<uid>`, 가게마다 한 사람 1회), KO XP 15, 정적 도장 페이지 `?vs=<slug>` 진입 (2026-11-24)
 - [ ] 3-8-2 부문별 관능 어휘 조사(`npm run lexicon`, 네이버 검색 API 키 필요)
-- [ ] 3-8-3 플레이어 캐릭터 시트(행복한 표정 스프라이트, 배 불룩 KO 포즈)
+- [~] 3-8-3 플레이어 캐릭터 시트: 전신 4컷(대기·한 입·맞음·행복 KO 배 불룩)을 Gemini로 생성해 게임 전체 아바타·대결에 씀(2026-11-24). 남은 것: 넉백·다운을 따로 나눈 프레임, 표정 자동 검수, 사진 동의 문구 법무 확인
+- [ ] Worker 배포: 이 환경엔 wrangler 로그인이 없어 `/avatar/gen`이 아직 운영에 없음. `wrangler secret put GEMINI_API_KEY` 후 `wrangler deploy` 하면 입장한 사람 캐릭터가 그려짐(그 전엔 손님 기본 그림·SVG)
 - [ ] 3-8-4 도트 매장 배경(업종별 타일셋)
 - [ ] 3-9 스포크 문구 뽑기(`npm run spoke`), 첫 후기 본문(방문 후)
 - [ ] 4 공유 버튼·격파 인증 카드(9:16, 1:1, 4:5)·UTM

@@ -1,6 +1,7 @@
 // 행복한 빌런 대결 화면(요청서 3-8, 3-8-1). index.html이 버튼을 누를 때 import()로 불러온다.
 // 한 입 = 필살기 한 방. 행복 게이지가 꽉 차면 행복 K.O.(지는 게 최고의 찬사)
 // ponytail: 효과는 DOM + Web Animations, 파티클만 Canvas. 그림 에셋은 assets/battle/manifest.json에 있으면 쓰고 없으면 이모지·CSS로.
+// 카메라: 무대(.bt-cam)에 transform(translate+scale)을 걸어 얼굴로 줌인·팬. 게이지·버튼은 무대 밖이라 흔들리지 않는다.
 import { GAUGE_MAX, start, bite, koLine } from "./battle-core.js";
 
 const BASE = new URL("./", import.meta.url).href;
@@ -8,9 +9,11 @@ const FX = ["drops", "combo", "counter", "stack", "steam", "bag"];
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-let manifest = null, art = {}; // art: 이 부문 그림 {villain, dumpling, steamer, bag, ko}
+let manifest = null, art = {}; // art: 이 부문 그림 {villain:{idle,taunt,special,win}, dumpling, steamer, bag, ko}
 const loadArt = async (div) => { manifest ??= await fetch(BASE + "battle/manifest.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({})); art = manifest[div] || {}; };
-const img = (k, cls = "", fallback = "") => (art?.[k] ? `<img class="${cls}" src="${BASE}battle/${esc(art[k])}" alt="" draggable="false">` : fallback);
+const img = (k, cls = "", fallback = "") => (typeof art?.[k] === "string" ? `<img class="${cls}" src="${BASE}battle/${esc(art[k])}" alt="" draggable="false">` : fallback);
+
+const pix = (f, k) => `<img class="pix" src="${esc(f.src)}" width="${f.w * k}" height="${f.h * k}" alt="" draggable="false">`;
 
 const CSS = `
 #battle{padding:0;border:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;background:#12102a;color:var(--fg);overflow:hidden;box-shadow:none}
@@ -25,17 +28,20 @@ const CSS = `
 .bt-gauge.full i{background:repeating-linear-gradient(90deg,var(--y) 0 10px,#fff2a8 10px 20px)}
 .bt-gauge>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font-family:var(--px);font-size:10px;color:#fff;text-shadow:2px 2px 0 #000}
 .bt-src{font-size:14px;color:var(--dim)}.bt-src b{color:var(--y);font-weight:400}
-.bt-arena{position:relative;overflow:hidden;background:linear-gradient(#1d1a3f 0 72%,#2a2350 72% 74%,#262253 74%);transition:background 1.2s}
-.bt-arena.warm{background:linear-gradient(#ff9f43 0,#ff6f91 72%,#c94f7c 72% 74%,#7a3b6b 74%)}
+.bt-arena{position:relative;overflow:hidden;background:linear-gradient(#1d1a3f 0 84%,#2a2350 84% 85.5%,#262253 85.5%);transition:background 1.2s}
+.bt-arena.warm{background:linear-gradient(#ff9f43 0,#ff6f91 84%,#c94f7c 84% 85.5%,#7a3b6b 85.5%)}
+.bt-cam{position:absolute;inset:0;transform-origin:0 0;z-index:2}
+.bt-breathe{position:absolute;inset:0;transform-origin:50% 92%;animation:bt-breath 3.2s ease-in-out infinite}
+@keyframes bt-breath{50%{transform:scale(1.015)}}
+.pix{image-rendering:pixelated;display:block;max-width:none}
 .bt-arena canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
-.bt-p{position:absolute;left:5%;bottom:26%;z-index:2;transform-origin:50% 100%}
-.bt-v{position:absolute;right:5%;bottom:26%;z-index:2;text-align:center;transform-origin:50% 100%}
+.bt-p{position:absolute;left:2%;bottom:9%;z-index:2;line-height:0;transform-origin:50% 100%}
+.bt-p svg{width:min(40vw,190px);height:auto}
+.bt-v{position:absolute;right:2%;bottom:9%;z-index:1;line-height:0;text-align:center;transform-origin:50% 100%}
 .bt-v .emo{font-size:min(32vw,140px);line-height:1;display:block;filter:drop-shadow(6px 6px 0 #07061a)}
-.bt-v img{width:min(40vw,190px);image-rendering:pixelated;display:block}
 .bt-v .horn{position:absolute;top:-6px;width:0;height:0;border:10px solid transparent;border-bottom:18px solid var(--m)}
 .bt-v .horn.l{left:22%}.bt-v .horn.r{right:22%}
-.bt-v .plate{font-size:15px;background:var(--panel2);border:2px solid var(--fg);padding:2px 8px;margin-top:6px;white-space:nowrap}
-.bt-v .emo,.bt-v img{animation:bt-bob 1.6s steps(4) infinite}
+.bt-v .emo{animation:bt-bob 1.6s steps(4) infinite}
 @keyframes bt-bob{50%{transform:translateY(-8px)}}
 .bt-fx{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
 .bt-num{position:absolute;font-family:var(--ko);font-size:34px;color:var(--y);text-shadow:3px 3px 0 var(--m),-1px -1px 0 #000;white-space:nowrap}
@@ -66,17 +72,20 @@ const CSS = `
 .bt-card .inline{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .bt-down{position:relative;height:120px;width:220px}
 .bt-down .lie{position:absolute;left:50%;top:55%;line-height:0;transform:translate(-50%,-50%) rotate(-90deg) scaleY(1.12) scaleX(.8);animation:bt-breathe 2.4s ease-in-out infinite}
+.bt-down .lie.sp{transform:translate(-50%,-50%);transform-origin:50% 100%;animation:bt-belly 2.4s ease-in-out infinite}
+@keyframes bt-belly{50%{transform:translate(-50%,-50%) scaleY(1.05)}}
 .bt-down .zz{position:absolute;right:0;top:0;font-size:18px;color:var(--m)}
 @keyframes bt-breathe{50%{transform:translate(-50%,-50%) rotate(-90deg) scaleY(1.12) scaleX(.9)}}
 .bt-steam{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .bt-steam i{position:absolute;bottom:-60px;width:90px;height:90px;border-radius:50%;background:radial-gradient(#ffffffaa,#fff0 70%);animation:bt-rise 4s linear infinite}
 @keyframes bt-rise{to{transform:translateY(-120vh) scale(2);opacity:0}}
 .bt-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-@media (prefers-reduced-motion:reduce){.bt-v .emo,.bt-v img,.bt-down .lie,.bt-steam i{animation:none}.bt-gauge i{transition:none}}
+@media (prefers-reduced-motion:reduce){.bt-v .emo,.bt-down .lie,.bt-steam i,.bt-breathe{animation:none}.bt-gauge i{transition:none}}
 `;
 
 /**
- * ctx = { div, target:{name}, stats:{vals,source,n}, axes:[{name,move?:{name,fx}}], emoji, koLine, avatar(happy)→svg,
+ * ctx = { div, target:{name}, stats:{vals,source,n}, axes:[{name,move?:{name,fx}}], emoji, koLine,
+ *         player: {idle,bite,hit,ko:{src,w,h}} | null(고화질 그림 없음), avatar(happy)→svg(대체 그림),
  *         onKO({bites,maxCombo}) → Promise<{saved, note}> }
  */
 export async function openBattle(ctx) {
@@ -100,8 +109,10 @@ export async function openBattle(ctx) {
       <div class="bt-src">${src}</div>
     </div>
     <div class="bt-arena">
-      <div class="bt-p" data-p>${ctx.avatar(false)}</div>
-      <div class="bt-v" data-v>${img("villain", "", `<span class="horn l"></span><span class="horn r"></span><span class="emo">${esc(ctx.emoji)}</span>`)}<div class="plate">${esc(ctx.target.name)}</div></div>
+      <div class="bt-cam"><div class="bt-breathe">
+        <div class="bt-p" data-p></div>
+        <div class="bt-v" data-v><span class="horn l"></span><span class="horn r"></span><span class="emo">${esc(ctx.emoji)}</span></div>
+      </div></div>
       <canvas></canvas><div class="bt-fx"></div>
     </div>
     <div class="bt-pad">
@@ -113,6 +124,33 @@ export async function openBattle(ctx) {
   const $ = (q) => dlg.querySelector(q);
   const arena = $(".bt-arena"), fx = $(".bt-fx"), cv = $("canvas"), P = $("[data-p]"), V = $("[data-v]");
   const live = (t) => ($(".bt-live").textContent = t);
+  const cam = $(".bt-cam");
+
+  /* ---- 캐릭터: 정수 배율로 크게(화면 높이 40% 안팎), 상황마다 표정 그림을 바꾼다 ---- */
+  const PF = ctx.player, VF = art.villain && typeof art.villain === "object" ? art.villain : null;
+  let kP = 1, kV = 1, poseP = "idle", poseV = "taunt";
+  const setP = (pose) => { poseP = pose; P.innerHTML = PF ? pix(PF[pose], kP) : ctx.avatar(pose !== "idle"); };
+  const setV = (pose) => { poseV = pose; if (VF) V.innerHTML = pix({ ...VF[pose], src: BASE + "battle/" + VF[pose].src }, kV); };
+  const fit = () => {
+    const tall = arena.clientHeight * 0.42, hmax = (F) => Math.max(...Object.values(F).map((f) => f.h));
+    if (PF) kP = Math.max(1, Math.floor(tall / hmax(PF)));
+    if (VF) kV = Math.max(1, Math.floor(tall / hmax(VF)));
+    setP(poseP); setV(poseV);
+  };
+
+  /* ---- 카메라: 얼굴(fy = 그림 높이 중 얼굴 위치)을 무대 가운데 위쪽으로. 움직임 줄이기면 즉시 컷 ---- */
+  const go = (tf, ms, easing = "ease-out") => {
+    const from = getComputedStyle(cam).transform;
+    cam.getAnimations().forEach((a) => a.cancel());
+    cam.style.transform = tf;
+    return reduce() || !ms ? Promise.resolve() : cam.animate([{ transform: from === "none" ? "translate(0px,0px) scale(1)" : from }, { transform: tf }], { duration: ms, easing }).finished.catch(() => {});
+  };
+  const camTo = (el, fy, sc, ms, easing) => {
+    const fx0 = el.offsetLeft + el.offsetWidth / 2, fy0 = el.offsetTop + el.offsetHeight * fy;
+    return go(`translate(${arena.clientWidth / 2 - fx0 * sc}px,${arena.clientHeight * 0.42 - fy0 * sc}px) scale(${sc})`, ms, easing);
+  };
+  const camReset = (ms) => go("translate(0px,0px) scale(1)", ms);
+  let seq = 0;
   const nextMove = () => dlg.querySelectorAll("[data-m]").forEach((el) => el.classList.toggle("on", +el.dataset.m === s.order[s.bites % 6]));
   nextMove();
 
@@ -220,41 +258,61 @@ export async function openBattle(ctx) {
 
   async function eat() {
     if (s.ko) return;
-    s = bite(s, performance.now());
-    maxCombo = Math.max(maxCombo, s.combo);
-    const m = moves[s.move];
-    if (s.bites === 1) P.innerHTML = ctx.avatar(true); // 첫 입부터 끝까지 행복한 얼굴
-    navigator.vibrate?.(s.ko ? [40, 60, 120] : 30);
-    beep(440 + s.combo * 90);
-    live(`${m.name}! 행복 +${s.gain}. 행복 ${s.happy}`);
+    const now = performance.now(), fast = now - s.last < 700, my = ++seq;
+    s = bite(s, now);
+    const st = s, m = moves[st.move];
+    maxCombo = Math.max(maxCombo, st.combo);
+    if (st.ko) $("[data-eat]").disabled = true;
+    live(`${m.name}! 행복 +${st.gain}. 행복 ${st.happy}`);
+    // ① 빌런 얼굴로 줌인(필살기 기합). 연타 중엔 건너뛴다
+    setV("special");
+    if (!fast) { await camTo(V, 0.45, 1.8, 150); await sleep(reduce() ? 260 : 170); }
+    // ② 타격: 플레이어 쪽으로 팬 + 히트 스톱, 한 입 먹고 황홀한 얼굴
+    navigator.vibrate?.(st.ko ? [40, 60, 120] : 30);
+    beep(440 + st.combo * 90);
+    setP("bite");
+    camTo(P, 0.24, 1.5, fast ? 90 : 120);
     flash();
     await hitStop();
     fx.querySelectorAll(".bt-move,.bt-combo").forEach((el) => el.remove()); // 연타해도 이름은 하나만
-    const banner = add(`${esc(m.name)}!<small>${esc(m.axis)} ${(+ctx.stats.vals[s.move]).toFixed(1)}</small>`, "bt-move");
+    const banner = add(`${esc(m.name)}!<small>${esc(m.axis)} ${(+ctx.stats.vals[st.move]).toFixed(1)}</small>`, "bt-move");
     anim(banner, reduce() ? [{ opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 0 }] : [{ transform: "translateX(40%) skewX(-10deg)", opacity: 0 }, { transform: "translateX(-50%) skewX(-10deg)", opacity: 1, offset: 0.2 }, { transform: "translateX(-50%) skewX(-10deg)", opacity: 1, offset: 0.75 }, { transform: "translateX(-120%) skewX(-10deg)", opacity: 0 }], 1100);
     gone(banner, 1150);
-    if (s.combo) { const c = add(`${s.combo + 1} COMBO!`, "bt-combo"); anim(c, [{ transform: "scale(1.6)" }, { transform: "scale(1)", offset: 0.2 }, { opacity: 0 }], 900); gone(c, 950); }
-    FXS[m.fx]?.(s.gain);
+    if (st.combo) { const c = add(`${st.combo + 1} COMBO!`, "bt-combo"); anim(c, [{ transform: "scale(1.6)" }, { transform: "scale(1)", offset: 0.2 }, { opacity: 0 }], 900); gone(c, 950); }
+    FXS[m.fx]?.(st.gain);
     flinch();
     const [x, y] = pCenter();
-    number(`행복 +${s.gain}`, x + 20, y - 30 - (s.combo % 3) * 38);
+    number(`행복 +${st.gain}`, x + 20, y - 30 - (st.combo % 3) * 38);
     setGauge(); nextMove();
-    if (s.ko) ko();
+    if (st.ko) return ko();
+    // ③ 놀라면서도 웃는 얼굴 → 줌아웃해서 둘 다
+    await sleep(240); if (my !== seq) return;
+    setP("hit"); camReset(320);
+    await sleep(520); if (my !== seq) return;
+    setP("idle"); setV("idle");
   }
 
   async function ko() {
     $("[data-eat]").disabled = true;
-    await sleep(500);
+    seq++;
+    await sleep(350);
     fx.replaceChildren(); // 클라이맥스는 깨끗하게
+    // 플레이어 얼굴로 천천히 줌인(감은 눈 웃음·발그레한 볼) → 잠깐 멈춤 → 줌아웃하며 배 불룩 누운 전신
+    setV("win"); setP("bite");
+    await camTo(P, 0.22, 2.4, 1100, "ease-in-out");
+    await sleep(reduce() ? 900 : 650);
+    setP("ko");
+    camReset(800);
     beep(523, 0.12); beep(659, 0.12, 0.13); beep(784, 0.3, 0.26);
     arena.classList.add("warm");
     arena.insertAdjacentHTML("beforeend", `<div class="bt-steam">${Array.from({ length: 8 }, (_, i) => `<i style="left:${i * 13}%;animation-delay:${i * 0.45}s"></i>`).join("")}</div>`);
     const t = add("행복<br>K.O.", "bt-big", "text-align:center");
     anim(t, reduce() ? [{ opacity: 0 }, { opacity: 1 }] : [{ transform: "translate(-50%,-50%) scale(5)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(.9)", opacity: 1, offset: 0.5 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1 }], 700);
-    if (!reduce()) { shake(10, 420); anim(P, [{ transform: "none" }, { transform: "translateY(6px) scaleY(.8) scaleX(1.15)", offset: 0.3 }, { transform: "translateY(30px) rotate(-82deg) scaleY(.72) scaleX(1.25)" }], { duration: 1400, delay: 300, easing: "cubic-bezier(.5,0,.6,1.4)" }); }
+    if (!reduce() && !PF) { shake(10, 420); anim(P, [{ transform: "none" }, { transform: "translateY(6px) scaleY(.8) scaleX(1.15)", offset: 0.3 }, { transform: "translateY(30px) rotate(-82deg) scaleY(.72) scaleX(1.25)" }], { duration: 1400, delay: 300, easing: "cubic-bezier(.5,0,.6,1.4)" }); }
     live(`행복 K.O. ${s.bites}입 만에 쓰러졌어요`);
     const save = ctx.onKO({ bites: s.bites, maxCombo }).catch(() => ({ saved: false, note: "기록 저장에 실패했어요. 잠시 후 다시 해 봐요" }));
-    await sleep(reduce() ? 900 : 2400);
+    if (PF && !reduce()) shake(8, 380);
+    await sleep(reduce() ? 1200 : 2200);
     result(save);
   }
 
@@ -264,7 +322,7 @@ export async function openBattle(ctx) {
     res.innerHTML = `<div class="bt-steam">${Array.from({ length: 8 }, (_, i) => `<i style="left:${i * 13}%;animation-delay:${i * 0.5}s"></i>`).join("")}</div>
       <div class="bt-card"><span class="tape">RESULT · 행복 KO 패배</span>
         ${art?.ko ? img("ko", "art") : ""}
-        <div class="bt-down"><div class="lie">${ctx.avatar(true)}</div><span class="zz">♥ 배불러…</span></div>
+        <div class="bt-down">${PF ? `<div class="lie sp">${pix(PF.ko, 2)}</div>` : `<div class="lie">${ctx.avatar(true)}</div>`}<span class="zz">♥ 배불러…</span></div>
         <h2>행복 K.O.</h2>
         <div class="line">${esc(koLine(ctx.target.name, s.bites))}</div>
         <div class="quote">“${esc(ctx.koLine)}”</div>
@@ -281,7 +339,12 @@ export async function openBattle(ctx) {
   }
 
   $("[data-eat]").addEventListener("click", eat);
+  addEventListener("resize", fit);
+  dlg.addEventListener("close", () => removeEventListener("resize", fit));
   dlg.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && e.target === dlg) { e.preventDefault(); eat(); } });
   dlg.showModal();
+  if (VF) V.replaceChildren();
+  fit();
+  setTimeout(() => { if (!s.bites) setV("idle"); }, 1600); // 도발하다가 대기
   $("[data-eat]").focus();
 }

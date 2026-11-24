@@ -11,3 +11,7 @@ database_id = "18a8d01d-17d8-43e4-a501-a0684c84b1a9"
 [[r2_buckets]]
 binding = "PHOTOS"
 bucket_name = "jeonmukdae-photos"
+
+# 캐릭터 생성 모델: /v1beta/models 목록에서 이미지 출력 모델을 확인하고 고른 값(2026-11-24). 키는 secret GEMINI_API_KEY
+[vars]
+GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image"

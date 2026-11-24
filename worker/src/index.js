@@ -5,7 +5,11 @@
 //                 GET /db/list?col=   GET /db/get?path=
 //                 POST /db/set?path=  POST /db/update?path=  POST /db/delete?path=   (Authorization: Bearer uid:pin)
 //   사진:         GET /photo/<key>  (문서 안의 dataURL 사진은 set/update 때 R2로 올리고 URL로 바꿔 저장)
+//   캐릭터 생성:  POST /avatar/gen {avatar, lvl, image?, kind?}  → Gemini 2x2 시트 PNG(base64). 저장 안 함(사진 포함).
+//                 브라우저가 프레임으로 잘라 players/{uid}.sprite.frames 로 저장하면 그때 R2에 올라간다.
 // ponytail: 권한은 "내가 만든 문서는 내가 고친다 + 남의 미션엔 내 표·내 격파만" 수준. 관리자 기능 없음.
+
+import { playerPrompt } from "../../assets/sprite.js";
 
 const PROXY = "https://k-skill-proxy.nomadamas.org/v1/kakao-map/search/keyword";
 const PLACE_API = "https://place-api.map.kakao.com/places/panel3/";
@@ -86,6 +90,7 @@ async function storePhotos(env, origin, body) {
     return `${origin}/photo/${key}`;
   };
   if (Array.isArray(body.photos)) body.photos = await Promise.all(body.photos.map(up));
+  if (Array.isArray(body.sprite?.frames)) body.sprite.frames = await Promise.all(body.sprite.frames.slice(0, 4).map(up));
   if (body.proof) body.proof = await up(body.proof);
   return body;
 }
@@ -158,6 +163,45 @@ async function handleDb(env, request, url, origin) {
   return json({ ok: true, t, body });
 }
 
+/* ---------- 캐릭터 생성: Gemini(키는 Worker secret GEMINI_API_KEY) ---------- */
+// ponytail: 하루 횟수는 D1 gens 표(사람마다 PER_UID, 전체 PER_DAY). 실패하면 횟수를 돌려준다.
+const PER_UID = 4, PER_DAY = 150;
+const AV_OK = { hair: ["short", "long", "bun", "mohawk", "bald"], acc: ["none", "band", "glasses", "cap", "towel", "chop", "apron", "ikseon"] };
+async function handleAvatar(env, request) {
+  const uid = await auth(env, request);
+  if (!uid) return json({ error: "입장(닉네임·PIN)해야 캐릭터를 만들 수 있어요" }, 401);
+  if (!env.GEMINI_API_KEY) return json({ error: "캐릭터 생성이 아직 꺼져 있어요" }, 503);
+  const { avatar = {}, lvl = 0, image = null, kind = null } = await request.json().catch(() => ({}));
+  const av = { skin: Math.max(0, Math.min(3, avatar.skin | 0)), hairc: Math.max(0, Math.min(5, avatar.hairc | 0)),
+    hair: AV_OK.hair.includes(avatar.hair) ? avatar.hair : "short", acc: AV_OK.acc.includes(avatar.acc) ? avatar.acc : "none" };
+  const lv = Math.max(0, Math.min(5, lvl | 0));
+  const m = typeof image === "string" ? /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(image) : null;
+  if (image && (!m || m[2].length > 2_000_000)) return json({ error: "사진은 2MB 이하 이미지만" }, 400);
+  const day = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS gens (day TEXT, uid TEXT, n INTEGER, PRIMARY KEY (day, uid))").run();
+  const mine = (await env.DB.prepare("SELECT n FROM gens WHERE day=? AND uid=?").bind(day, uid).first())?.n || 0;
+  const all = (await env.DB.prepare("SELECT SUM(n) s FROM gens WHERE day=?").bind(day).first())?.s || 0;
+  if (mine >= PER_UID) return json({ error: `오늘은 캐릭터를 ${PER_UID}번 다 그렸어요. 내일 다시 그려요` }, 429);
+  if (all >= PER_DAY) return json({ error: "오늘 캐릭터 그리기가 꽉 찼어요. 내일 다시 그려요" }, 429);
+  const bump = (d) => env.DB.prepare("INSERT INTO gens (day,uid,n) VALUES (?,?,?) ON CONFLICT(day,uid) DO UPDATE SET n=n+?").bind(day, uid, d, d).run();
+  await bump(1);
+  try {
+    const parts = [{ text: playerPrompt(av, lv, m ? (kind === "ref" ? "ref" : "photo") : null) }];
+    if (m) parts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_IMAGE_MODEL}:generateContent`, {
+      method: "POST", headers: { "x-goog-api-key": env.GEMINI_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: "1:1" } } }),
+    });
+    const j = await r.json();
+    const img = (j.candidates || []).flatMap((c) => c.content?.parts || []).find((p) => p.inlineData)?.inlineData;
+    if (!r.ok || !img) throw new Error(j.error?.message || "그림이 안 왔어요");
+    return json({ mime: img.mimeType, data: img.data, left: PER_UID - mine - 1 });
+  } catch (e) {
+    await bump(-1);
+    return json({ error: "캐릭터를 못 그렸어요. 잠시 후 다시 해 봐요", detail: String(e).slice(0, 200) }, 502);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -171,6 +215,7 @@ export default {
       return new Response(obj.body, { headers: { "Content-Type": obj.httpMetadata?.contentType || "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ...CORS } });
     }
     if (url.pathname === "/auth" && request.method === "POST") return handleAuth(env, request);
+    if (url.pathname === "/avatar/gen" && request.method === "POST") return handleAvatar(env, request);
     if (url.pathname.startsWith("/db/")) return handleDb(env, request, url, origin);
 
     if (request.method !== "GET") return json({ error: "GET only" }, 405);
