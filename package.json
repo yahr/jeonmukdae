@@ -6,7 +6,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test scripts/",
+    "test": "node --test scripts/validate.test.mjs",
     "og": "python3 scripts/og.py",
     "add-dojo": "node scripts/add-dojo.mjs",
     "serve": "python3 server.py 8791"
