@@ -308,7 +308,7 @@ export async function openBattle(ctx) {
     if (st.ko) return ko(st);
     // ③ 놀라면서도 웃는 얼굴 → 줌아웃해서 둘 다
     await sleep(240); if (my !== seq) return;
-    setP("hit"); camReset(320);
+    setP(st.mult >= 2 ? "hit" : "bliss"); camReset(320); // 씹으며 감동, 추가 데미지면 놀라며 웃음
     await sleep(520); if (my !== seq) return;
     setP("idle"); setV("idle");
   }
@@ -325,15 +325,17 @@ export async function openBattle(ctx) {
       return go(`translate(${8 - minX * sc}px,${H * 0.91 * (1 - sc)}px) scale(${sc})`, ms);
     };
     if (reduce()) { // 컷: 타격 → 누운 모습 → 문구
-      P.style.transform = `translateX(${dx}px)`; setP("ko"); frameAll(0);
+      P.style.transform = `translateX(${dx}px)`; setP("down"); frameAll(0);
       return landed(st);
     }
     // 흑백·슬로우 들어가며 얼굴로 줌인
     const gray = arena.animate([{ filter: "none" }, { filter: "saturate(.25) contrast(1.15)" }], { duration: 260, fill: "forwards" });
-    setP("hit"); // 놀라면서 웃는 얼굴 그대로 날아간다
+    setP("knock"); // 넉백: 뒤로 젖혀지며 웃음
     await camTo(P, 0.24, 1.9, 320);
+    setP("fly"); // 날아감(전용 프레임이 없는 예전 2x2는 맞음 프레임을 더 돌린다)
+    const spin = PF && PF.fly.src !== PF.hit.src ? 24 : 62;
     // 포물선(0.25배속 느낌), 살짝 회전, 반투명 잔상 3개, 카메라가 따라감
-    const kf = Array.from({ length: 11 }, (_, j) => { const t = j / 10; return { transform: `translate(${dx * t}px,${-up * 4 * t * (1 - t)}px) rotate(${-8 - 62 * t}deg)` }; });
+    const kf = Array.from({ length: 11 }, (_, j) => { const t = j / 10; return { transform: `translate(${dx * t}px,${-up * 4 * t * (1 - t)}px) rotate(${-8 - spin * t}deg)` }; });
     const ghosts = [0.42, 0.26, 0.14].map((o, j) => {
       const g = document.createElement("div"); g.className = "bt-ghost"; g.style.opacity = o; g.innerHTML = P.innerHTML; stage.append(g);
       g.animate(kf, { duration: T, delay: 90 * (j + 1), easing: "linear", fill: "both" });
@@ -346,7 +348,7 @@ export async function openBattle(ctx) {
     // 착지: 원래 속도, 먼지·김, 흔들림
     gray.cancel(); ghosts.forEach((g) => g.remove()); fly.cancel();
     P.style.transform = `translateX(${dx}px)`;
-    setP("ko");
+    setP("land"); // 쿵
     const a = arena.getBoundingClientRect(), b = P.getBoundingClientRect();
     burst(b.left - a.left + b.width / 2, b.bottom - a.top - 6, 34, ["#ffffff", "#e9e3cc", "#cfc6e6", "#fff6c2"], { up: true, v: 2, spread: 5, g: 0.12 });
     shake(12, 420); beep(110, 0.25);
@@ -357,6 +359,7 @@ export async function openBattle(ctx) {
   }
 
   async function landed(st) {
+    if (PF) { setTimeout(() => setP("down"), reduce() ? 0 : 450); setTimeout(() => setP("melt"), reduce() ? 700 : 1300); } // 다운(배 불룩) → 늘어짐
     beep(523, 0.12); beep(659, 0.12, 0.13); beep(784, 0.3, 0.26);
     arena.classList.add("warm");
     arena.insertAdjacentHTML("beforeend", `<div class="bt-steam">${Array.from({ length: 8 }, (_, i) => `<i style="left:${i * 13}%;animation-delay:${i * 0.45}s"></i>`).join("")}</div>`);
@@ -376,7 +379,7 @@ export async function openBattle(ctx) {
     res.className = "bt-res";
     res.innerHTML = `<div class="bt-steam">${Array.from({ length: 8 }, (_, i) => `<i style="left:${i * 13}%;animation-delay:${i * 0.5}s"></i>`).join("")}</div>
       <div class="bt-card"><span class="tape">RESULT · 행복 KO 패배</span>
-        <div class="bt-down">${PF ? `<div class="lie sp">${pix(PF.ko, 1)}</div>` : `<div class="lie">${ctx.avatar(true)}</div>`}<span class="zz">♥ 배불러…</span></div>
+        <div class="bt-down">${PF ? `<div class="lie sp">${pix(PF.melt, 1)}</div>` : `<div class="lie">${ctx.avatar(true)}</div>`}<span class="zz">♥ 배불러…</span></div>
         <h2>행복 K.O.</h2>
         <div class="weapon">이 집의 필살 무기<b>${tops.map((t) => `${esc(moves[t.i].name)}(${t.count > 1 ? t.count + "연타" : "1번"})`).join(" · ")}</b></div>
         <div class="line">${esc(weaponLine(ctx.target.name, tops.map((t) => moves[t.i].word), st.presses))}</div>

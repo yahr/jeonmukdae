@@ -26,9 +26,5 @@
     "steamer": "jjinmandu-steamer.webp",
     "bag": "jjinmandu-bag.webp",
     "ko": "jjinmandu-ko.webp"
-  },
-  "_models": {
-    "dumpling·steamer·bag·ko": "gemini-3-pro-image",
-    "jjinmandu villain": "gemini-3-pro-image"
   }
 }

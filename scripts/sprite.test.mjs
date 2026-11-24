@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sheetFrames } from "../assets/sprite.js";
+import { sheetFrames, poseFrames, POSES } from "../assets/sprite.js";
 
 // 2x2 시트 합성: 바탕 마젠타(+왼쪽 위 칸은 보라 그라데이션), 칸마다 검은 테두리 사각형 하나
 function sheet(W = 64) {
@@ -32,4 +32,27 @@ test("빈 칸이면 1x1 투명 프레임", () => {
   for (let i = 0; i < W * W; i++) px.set([255, 0, 255, 255], i * 4);
   const f = sheetFrames(px, W, W, { scale: 2, inset: 0 });
   assert.deepEqual(f.map((x) => [x.w, x.h]), [[1, 1], [1, 1], [1, 1], [1, 1]]);
+});
+
+test("3x3 시트도 칸 순서대로 9장", () => {
+  const W = 90, px = new Uint8ClampedArray(W * W * 4);
+  for (let i = 0; i < W * W; i++) px.set([255, 0, 255, 255], i * 4);
+  for (let c = 0; c < 9; c++) { // 칸마다 (c+1)*2 높이 막대
+    const x0 = (c % 3) * 30 + 10, y0 = Math.floor(c / 3) * 30 + 4;
+    for (let y = y0; y < y0 + (c + 1) * 2; y++) for (let x = x0; x < x0 + 4; x++) px.set([20, 16, 42, 255], (y * W + x) * 4);
+  }
+  const f = sheetFrames(px, W, W, { cols: 3, rows: 3, scale: 2, inset: 0 });
+  assert.deepEqual(f.map((x) => x.h), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+});
+
+test("동작 9개: 3x3은 그대로, 예전 2x2(grid 없음)는 가까운 프레임으로 대체", () => {
+  const nine = { grid: 3, frames: "abcdefghi".split(""), sizes: Array.from({ length: 9 }, (_, i) => [i + 1, 10]) };
+  const p9 = poseFrames(nine);
+  assert.deepEqual(POSES.map((k) => p9[k].src).join(""), "abcdefghi");
+  assert.deepEqual(p9.fly, { src: "f", w: 6, h: 10 });
+  const four = { frames: ["I", "B", "H", "K"], sizes: [[1, 1], [2, 2], [3, 3], [4, 4]] };
+  const p4 = poseFrames(four);
+  assert.deepEqual(POSES.map((k) => p4[k].src), ["I", "B", "B", "H", "H", "H", "K", "K", "K"]);
+  assert.equal(poseFrames({ grid: 3, frames: ["a"], sizes: [[1, 1]] }), null); // 덜 저장된 건 안 씀
+  assert.equal(poseFrames(null), null);
 });

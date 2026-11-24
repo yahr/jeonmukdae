@@ -52,7 +52,7 @@ export function sheetFrames(px, W, H, { cols = 2, rows = 2, scale = 4, inset = 0
   return out;
 }
 
-/** 브라우저: 이미지 → 프레임 dataURL 4장 */
+/** 브라우저: 이미지 → 프레임 dataURL(opt.cols×opt.rows, 기본 2x2) */
 export async function imageToFrames(src, opt) {
   const img = await new Promise((ok, no) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = no; i.src = src; });
   const cv = document.createElement("canvas"); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
@@ -71,23 +71,37 @@ const HAIR_T = { short: "short hair with a fringe", long: "long straight hair pa
 const HAIRC_T = ["black", "dark brown", "golden blonde", "red", "bright blue", "silver white"];
 const ACC_T = { none: "", band: " Wears a red headband with two short tails.", glasses: " Wears round black glasses.", cap: " Wears a blue baseball cap.", towel: " Has a white sweat towel tied around the head.", chop: " Holds shiny golden chopsticks.", apron: " Wears a pink apron over the uniform.", ikseon: " Wears a black Korean royal ikseongwan hat with two upright wings and gold trim." };
 const BELT_T = ["white", "yellow", "blue", "red", "black", "glowing gold"];
-export const POSES = ["idle", "bite", "hit", "ko"];
+/** 동작 9개(3x3 시트 칸 순서). 예전 2x2 시트(idle·bite·hit·ko)는 LEGACY 로 가까운 프레임을 쓴다 */
+export const POSES = ["idle", "bite", "bliss", "hit", "knock", "fly", "land", "down", "melt"];
+const LEGACY = [0, 1, 1, 2, 2, 2, 3, 3, 3];
+/** 저장된 sprite {grid, frames, sizes} → {동작: {src,w,h}}. grid 없으면 2x2. 프레임이 모자라면 null */
+export function poseFrames(sp) {
+  const g = sp?.grid || 2, n = g * g;
+  if (!sp || sp.frames?.length !== n || sp.sizes?.length !== n) return null;
+  return Object.fromEntries(POSES.map((k, i) => { const j = g === 3 ? i : LEGACY[i]; return [k, { src: sp.frames[j], w: sp.sizes[j][0], h: sp.sizes[j][1] }]; }));
+}
 
 export function playerPrompt(av = {}, lvl = 0, image = null) {
   const hair = av.hair === "bald" ? HAIR_T.bald : `${HAIRC_T[av.hairc] || HAIRC_T[0]} ${HAIR_T[av.hair] || HAIR_T.short}`;
   const ref = image === "photo"
     ? "\n\nUse the attached photo only as a likeness reference for the face shape, hairstyle and hair color, simplified into this chibi pixel style. Do not copy the photo background or clothes."
     : image === "ref" ? "\n\nThe attached sprite is this same character: keep exactly the same face, hair and accessories, and only apply the description below (such as the belt color)." : "";
-  return `Pixel art character sprite sheet for a retro 2D arcade RPG. A 2x2 grid of four equal square cells, one pose per cell, the SAME character in every cell (identical face, hair, outfit, colors, proportions), each pose centered in its cell with empty margin, nothing crossing into another cell.
+  return `Pixel art character sprite sheet for a retro 2D arcade RPG. A 3x3 grid of nine equal square cells, one pose per cell, the SAME character in every cell (identical face, hair, outfit, colors, proportions), each pose centered in its cell with empty margin, nothing crossing into another cell.
 
-Art style: late-1990s Korean 2D MMORPG sprite quality. Chibi proportions about 2.5 heads tall with a big head, full body from head to feet visible. Crisp hand-placed pixels, 1-pixel dark outline around the whole figure, 4 to 5 shading steps per color, visible cloth folds on the uniform, individual hair strand clusters with highlights. Three-quarter view facing right. Each figure about 100 pixels tall in pixel scale.${ref}
+Art style: late-1990s Korean 2D MMORPG sprite quality. Chibi proportions about 2.5 heads tall with a big head, full body from head to feet visible. Crisp hand-placed pixels, 1-pixel dark outline around the whole figure, 4 to 5 shading steps per color, visible cloth folds on the uniform, individual hair strand clusters with highlights. Three-quarter view facing right. Each figure about 80 pixels tall in pixel scale.${ref}
 
 Character: a cheerful young Korean food-challenge fighter. Skin tone: ${SKIN_T[av.skin] || SKIN_T[0]}. ${hair[0].toUpperCase() + hair.slice(1)}. Wears a cream-white martial arts uniform (dobok) with a crossed V-neck collar, loose sleeves and loose trousers, and a ${BELT_T[lvl] || BELT_T[0]} belt tied in a knot at the waist with two hanging ends. Simple dark slip-on shoes. Holds a pair of wooden chopsticks.${ACC_T[av.acc] || ""}${lvl >= 5 ? " A small golden crown floats above the head." : ""}
 
-Cell 1 (top-left): standing ready pose, excited eager grin, sparkling eyes, chopsticks raised.
-Cell 2 (top-right): eating a steamed dumpling from the chopsticks, eyes closed in bliss, rosy pink cheeks, tiny sparkles.
-Cell 3 (bottom-left): leaning back from a hit, surprised wide eyes but laughing with an open happy mouth.
-Cell 4 (bottom-right): knocked out lying flat on their back on the ground, round full belly puffed up, eyes closed in a blissful smile, rosy cheeks, two little pink hearts floating above.
+Cells in reading order (left to right, top row first):
+Cell 1 idle: standing ready pose, excited eager grin, sparkling eyes, chopsticks raised.
+Cell 2 bite: taking a bite of a steamed dumpling from the chopsticks, happy chewing face, rosy cheeks.
+Cell 3 bliss: chewing with eyes closed and hands on cheeks, deeply moved by the taste, tiny sparkles and a little heart.
+Cell 4 hit: jolted by a hit, surprised wide eyes but laughing with an open happy mouth.
+Cell 5 knockback: bent far backward with arms flung out, hair and clothes swept back, still laughing happily.
+Cell 6 flying: airborne and tumbling backward, body tilted, legs up, hair and sleeves fluttering, eyes closed in a big happy grin.
+Cell 7 landing: just hit the ground on their back with a soft thud, small puffs of dust and white steam around, happy closed-eye smile.
+Cell 8 down: lying flat on their back, round full belly puffed up, eyes closed in a blissful smile, rosy cheeks.
+Cell 9 melted: completely relaxed and melted flat like a happy puddle on the floor, round belly up, dreamy smile, three little pink hearts floating above.
 
 Every face must look happy and delighted. Never pain, never frowning, never crying.
 Background: one flat solid pure magenta color #FF00FF filling every cell, no floor, no shadows, no gradient, no grid lines.

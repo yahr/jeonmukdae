@@ -90,7 +90,7 @@ async function storePhotos(env, origin, body) {
     return `${origin}/photo/${key}`;
   };
   if (Array.isArray(body.photos)) body.photos = await Promise.all(body.photos.map(up));
-  if (Array.isArray(body.sprite?.frames)) body.sprite.frames = await Promise.all(body.sprite.frames.slice(0, 4).map(up));
+  if (Array.isArray(body.sprite?.frames)) body.sprite.frames = await Promise.all(body.sprite.frames.slice(0, 9).map(up));
   if (body.proof) body.proof = await up(body.proof);
   return body;
 }

@@ -140,9 +140,7 @@ def main():
         im.save(OUT / f, "WEBP", lossless=True)
         manifest.setdefault(div, {})[name] = f
         print("저장:", f, im.size)
-    if not src:
-        for name in args or ART:
-            manifest.setdefault("_models", {})[name] = model
+    # 모델 이름은 manifest(공개 파일)에 쓰지 않는다 → CLAUDE.md 규칙
     mf.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
 
 
