@@ -204,7 +204,8 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .cam{position:relative;background:#000;border:3px solid var(--fg);aspect-ratio:4/3;max-width:100%;display:grid;place-items:center;overflow:hidden}
 .cam video,.cam img{width:100%;height:100%;object-fit:cover}
 .cam.mirror video,.cam.mirror img{transform:scaleX(-1)}
-.camguide{position:absolute;left:50%;top:47%;height:78%;aspect-ratio:3/4;transform:translate(-50%,-50%);border:2px dashed #ffffffb0;border-radius:50%;pointer-events:none}
+.cam.selfie{aspect-ratio:3/4;width:min(100%,46vh);margin-inline:auto} /* 셀카는 세로 칸: 가로 칸이면 위아래가 잘려 폰을 멀리 들어야 했음 */
+.camguide{position:absolute;left:50%;top:46%;height:58%;aspect-ratio:3/4;transform:translate(-50%,-50%);border:2px dashed #ffffffb0;border-radius:50%;pointer-events:none}
 .camover{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--y);background:rgba(7,6,26,.7);word-break:keep-all}
 @media (prefers-reduced-motion:reduce){.stage.shake,.bowl,.bowl i,.vs,.taunt,.stage .stripes,.stage .flashbg{animation:none}.stage .flashbg{opacity:0}}
 @media (max-width:560px){.stage{grid-template-columns:1fr}.bowl{font-size:72px}.vs{font-size:24px}}
@@ -725,16 +726,16 @@ function captureShot(title,o={}){ // o: {facing:'user', mirror, max, guide, sub,
   return new Promise(resolve=>{
     let shot=null,done=false;const finish=v=>{if(done)return;done=true;stopCam2();$('#camdlg').close();resolve(v)};
     $('#camui').innerHTML=`<div class="top"><div><span class="tape">SHOOT</span><h2 style="margin-top:8px">${esc(title)}</h2><div class="meta sub">${esc(o.sub||'첨부 불가 · 지금 눈앞의 음식만')}</div></div><button class="btn ghost" type="button" id="cam-x">✕</button></div>
-      <div class="cam${o.mirror?' mirror':''}"><video id="cam2-view" autoplay playsinline muted></video><img id="cam2-prev" alt="촬영본" hidden>${o.guide?'<div class="camguide" aria-hidden="true"></div>':''}<div class="camover" id="cam2-msg">카메라 켜는 중…</div></div>
+      <div class="cam${o.mirror?' mirror':''}${o.facing==='user'?' selfie':''}"><video id="cam2-view" autoplay playsinline muted></video><img id="cam2-prev" alt="촬영본" hidden>${o.guide?'<div class="camguide" aria-hidden="true"></div>':''}<div class="camover" id="cam2-msg">카메라 켜는 중…</div></div>
       <div class="inline" style="align-items:center"><button class="btn sec" type="button" id="cam2-shutter" disabled>📸 찰칵</button><button class="btn ghost" type="button" id="cam2-retake" hidden>↺ 다시</button><button class="btn" type="button" id="cam2-use" disabled>이 사진 쓰기</button></div>`;
     const v=$('#cam2-view'),prev=$('#cam2-prev'),msg=$('#cam2-msg');
     $('#cam-x').onclick=()=>finish(null);$('#camdlg').addEventListener('close',()=>finish(null),{once:true});
     (async()=>{
       if(!navigator.mediaDevices?.getUserMedia){msg.textContent='이 브라우저는 카메라를 못 써요. 폰에서 찍어요.';o.onDenied?.();return}
-      try{cam2=await navigator.mediaDevices.getUserMedia({video:{facingMode:o.facing||'environment',width:{ideal:1280}},audio:false});v.srcObject=cam2;msg.hidden=true;$('#cam2-shutter').disabled=false}
+      try{cam2=await navigator.mediaDevices.getUserMedia({video:o.facing==='user'?{facingMode:'user',width:{ideal:720},height:{ideal:960},aspectRatio:{ideal:0.75}}:{facingMode:o.facing||'environment',width:{ideal:1280}},audio:false});v.srcObject=cam2;msg.hidden=true;$('#cam2-shutter').disabled=false}
       catch(err){msg.textContent=(err.name==='NotAllowedError'?'카메라 권한을 허용해야 찍을 수 있어요.':'카메라를 못 찾았어요.')+(o.onDenied?' 대신 랜덤 생성은 돼요.':'');o.onDenied?.()}
     })();
-    $('#cam2-shutter').onclick=()=>{const r=Math.min(1,(o.max||640)/Math.max(v.videoWidth,v.videoHeight)); // 저장본은 거울 반전 없는 원본const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*r);c.height=Math.round(v.videoHeight*r);
+    $('#cam2-shutter').onclick=()=>{const r=Math.min(1,(o.max||640)/Math.max(v.videoWidth,v.videoHeight));/* 저장본은 거울 반전 없는 원본 */const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*r);c.height=Math.round(v.videoHeight*r);
       c.getContext('2d').drawImage(v,0,0,c.width,c.height);shot=c.toDataURL('image/jpeg',.72);prev.src=shot;prev.hidden=false;v.hidden=true;$('#cam2-shutter').hidden=true;$('#cam2-retake').hidden=false;$('#cam2-use').disabled=false};
     $('#cam2-retake').onclick=()=>{shot=null;prev.hidden=true;v.hidden=false;$('#cam2-shutter').hidden=false;$('#cam2-retake').hidden=true;$('#cam2-use').disabled=true};
     $('#cam2-use').onclick=()=>finish(shot);
@@ -909,8 +910,8 @@ function avatarSVG(av,lvl,size,happy){ // happy: 행복 KO 얼굴(감은 눈 웃
 }
 /* ---------- 내 전신 캐릭터(AI 이미지 생성). "사진으로 만들기"·"랜덤 생성" 버튼으로만 만든다(무료 평생 2회, 자동 재생성 없음).
    만든 게 없으면 픽셀 SVG(avatarSVG). 등급(띠 색·먹신 왕관)은 생성 그림 위에 덧그린다(그림은 늘 흰 띠로 그리게 lvl 0으로 요청) ---------- */
-const POSES=['idle','bite','hit','ko'];
-function spriteOf(){const sp=me.sprite;return sp?.v===2&&sp.frames?.length===4?Object.fromEntries(POSES.map((p,i)=>[p,{src:sp.frames[i],w:sp.sizes[i][0],h:sp.sizes[i][1]}])):null} // v1(예전 자동 생성)은 안 쓴다
+let spriteLib=null; // assets/sprite.js (부트 때 불러옴)
+function spriteOf(){return me.sprite?.v===2&&spriteLib?spriteLib.poseFrames(me.sprite):null} // 동작 9개(예전 2x2는 가까운 프레임으로). v1(예전 자동 생성)은 안 쓴다
 const beltBadge=(lvl,size)=>{const L=LEVELS[lvl]||LEVELS[0];return `<i class="belt" style="--bc:${L.c};width:${Math.max(10,Math.round(size*.36))}px" title="${esc(L.n)} 띠"></i>${L.god?`<i class="crown" style="font-size:${Math.max(10,Math.round(size*.3))}px">👑</i>`:''}`};
 function avatarHTML(av,lvl,size,pose='idle'){
   const f=spriteOf()?.[pose];
@@ -928,8 +929,8 @@ async function genCharacter(photo){
   const r=await fetch(DBBASE+'/avatar/gen',{method:'POST',headers:{'Content-Type':'application/json',...authHdr()},body:JSON.stringify({avatar:av,lvl:0,image:photo,kind:photo?'photo':null})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok||!j.data)throw Object.assign(new Error(j.error||'캐릭터를 못 그렸어요. 잠시 후 다시 해 봐요'),{quota:j.quota});
-  const fr=await (await import('./assets/sprite.js')).imageToFrames(`data:${j.mime};base64,${j.data}`);
-  await saveMe({avatar:av,sprite:{v:2,kind:photo?'photo':'random',frames:fr.map(f=>f.url),sizes:fr.map(f=>[f.w,f.h]),t:Date.now()}});
+  const fr=await spriteLib.imageToFrames(`data:${j.mime};base64,${j.data}`,{cols:3,rows:3,scale:3}); // 3x3 = 동작 9개
+  await saveMe({avatar:av,sprite:{v:2,grid:3,kind:photo?'photo':'random',frames:fr.map(f=>f.url),sizes:fr.map(f=>[f.w,f.h]),t:Date.now()}});
   const pd=(await db.doc('players/'+uid).get()).data();if(pd?.sprite)me.sprite=pd.sprite; // 서버가 R2 주소로 바꾼 것
   renderChar();return j;
 }
@@ -1083,7 +1084,7 @@ async function migrateLocal(){
 
 /* ---------- 부트 ---------- */
 async function boot(){
-  renderSelect();renderChar(); // 서버 응답 전에도 기본 캐릭터부터
+  spriteLib=await import('./assets/sprite.js').catch(()=>null);renderSelect();renderChar(); // 서버 응답 전에도 기본 캐릭터부터
   db=remoteDB(DBBASE);
   if(!authInfo)await openAuth();
   user=remoteUser(db);uid=await user.id();
