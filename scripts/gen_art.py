@@ -36,7 +36,6 @@ ART = {
 VILLAIN_PROMPT = (ROOT / "scripts/prompts/villain-jjinmandu.txt")
 SHEETS = {
     "villain-sheet": (("jjinmandu", "villain"), ["idle", "taunt", "special", "win"], lambda: VILLAIN_PROMPT.read_text()),
-    "player-default": (("player",), ["idle", "bite", "hit", "ko"], lambda: node_eval("m.playerPrompt({skin:0,hair:'short',hairc:0,acc:'none'},0)")),
 }
 
 

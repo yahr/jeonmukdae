@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sheetFrames, spriteSig } from "../assets/sprite.js";
+import { sheetFrames } from "../assets/sprite.js";
 
 // 2x2 시트 합성: 바탕 마젠타(+왼쪽 위 칸은 보라 그라데이션), 칸마다 검은 테두리 사각형 하나
 function sheet(W = 64) {
@@ -32,11 +32,4 @@ test("빈 칸이면 1x1 투명 프레임", () => {
   for (let i = 0; i < W * W; i++) px.set([255, 0, 255, 255], i * 4);
   const f = sheetFrames(px, W, W, { scale: 2, inset: 0 });
   assert.deepEqual(f.map((x) => [x.w, x.h]), [[1, 1], [1, 1], [1, 1], [1, 1]]);
-});
-
-test("서명: 꾸미기·띠 등급이 같으면 같고, 하나라도 다르면 다르다(사진 픽셀은 무시)", () => {
-  const a = { skin: 1, hair: "short", hairc: 2, acc: "none", photo: ["#fff"] };
-  assert.equal(spriteSig(a, 0), spriteSig({ ...a, photo: ["#000"] }, 0));
-  assert.notEqual(spriteSig(a, 0), spriteSig(a, 1));
-  assert.notEqual(spriteSig(a, 0), spriteSig({ ...a, acc: "cap" }, 0));
 });

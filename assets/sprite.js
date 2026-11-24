@@ -52,9 +52,6 @@ export function sheetFrames(px, W, H, { cols = 2, rows = 2, scale = 4, inset = 0
   return out;
 }
 
-/** 캐릭터 생성 서명: 이게 바뀌면 다시 그린다(사진 픽셀·이름은 제외). v1 = 프롬프트 판 */
-export const spriteSig = (av, lvl) => ["v1", av.skin, av.hair, av.hairc, av.acc, lvl].join("-");
-
 /** 브라우저: 이미지 → 프레임 dataURL 4장 */
 export async function imageToFrames(src, opt) {
   const img = await new Promise((ok, no) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = no; i.src = src; });

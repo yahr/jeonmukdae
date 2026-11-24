@@ -28,8 +28,8 @@
 | `content/guide/<slug>.md` | 큐레이션 글. 머리말 `title`, `description`, `date`, `dojos: slug1, slug2` |
 | `assets/battle-core.js` | 행복한 빌런 숫자 로직: 기술 1/n + 같은 기술 k번째 ×(1+0.5(k−1)) 상한 3배, 정신줄=100−행복, 오버킬, 필살 무기·손님 집계, 평가 초안, 최강 빌런. 테스트 `scripts/battle.test.mjs` |
 | `assets/battle.js` | 대결 화면 연출. 버튼 누를 때 `import()`로 불러온다(첫 로딩에 안 들어감) |
-| `assets/battle/` | Gemini로 만든 대결 그림(WebP)과 `manifest.json`: 부문별 빌런 표정 4컷(idle·taunt·special·win)·소품, 손님용 기본 캐릭터 4컷 `player-*`(idle·bite·hit·ko) |
-| `assets/sprite.js` | 2x2 표정 시트 → 프레임 자르기(마젠타·후광 지우기, 픽셀 축소), 캐릭터 서명, 플레이어 프롬프트. 브라우저·Worker·`gen_art.py`가 같이 씀. 테스트 `scripts/sprite.test.mjs` |
+| `assets/battle/` | Gemini로 만든 대결 그림(WebP)과 `manifest.json`: 부문별 빌런 표정 4컷(idle·taunt·special·win)·소품 |
+| `assets/sprite.js` | 2x2 표정 시트 → 프레임 자르기(마젠타·후광 지우기, 픽셀 축소), 플레이어 프롬프트. 브라우저·Worker·`gen_art.py`가 같이 씀. 테스트 `scripts/sprite.test.mjs` |
 | `scripts/prompts/` | 빌런 시트 프롬프트(글로만, 외부 사진·원작 그림 입력 금지) |
 | `scripts/gen_art.py` | `npm run art [-- 이름]`: Gemini 이미지 모델로 대결 그림 생성. 모델은 목록에서 고름, 키는 `.env` |
 | `scripts/build.mjs` | 정적 빌드 → `_site/` (부문·도장·큐레이션 페이지, JSON-LD, sitemap, robots, llms.txt) |
@@ -48,7 +48,7 @@ npm run build                 # _site/ 만들기
 npm run add-dojo -- "검색어" --division jjinmandu --slug mandu-xxx
 npm run og                    # 공유 이미지 다시 만들기(도장을 추가했으면 필수)
 npm run art -- villain        # 대결 그림 다시 만들기(.env의 GEMINI_API_KEY). 표정이 행복한지 눈으로 검수
-npm run art -- villain-sheet  # 빌런 표정 4컷 시트(player-default = 손님 기본 캐릭터). --from=시트.png 면 자르기만
+npm run art -- villain-sheet  # 빌런 표정 4컷 시트. --from=시트.png 면 자르기만
 # Worker 캐릭터 생성 키(값이 화면에 안 나오게): cd worker && grep '^GEMINI_API_KEY=' ../.env | cut -d= -f2- | tr -d "\"' \r\n" | npx wrangler secret put GEMINI_API_KEY
 cd worker && wrangler deploy  # API 고칠 때
 ```

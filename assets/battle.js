@@ -102,7 +102,7 @@ const CSS = `
 
 /**
  * ctx = { div, target:{name}, stats:{vals,source,n}, axes:[{name,feel,word,move:{name,fx}}], damage?, emoji, koLine,
- *         player: {idle,bite,hit,ko:{src,w,h}} | null(고화질 그림 없음), avatar(happy)→svg(대체 그림),
+ *         player: {idle,bite,hit,ko:{src,w,h}} | null(만든 캐릭터 없음 → SVG), badge(등급 덧그림 HTML), avatar(happy)→svg(대체 그림),
  *         onKO({uses,presses}) → Promise<{saved, note}>, onDraft?(draft 1~5 ×6) }
  */
 export async function openBattle(ctx) {
@@ -143,7 +143,7 @@ export async function openBattle(ctx) {
   /* ---- 캐릭터: 정수 배율로 크게(화면 높이 40% 안팎), 상황마다 표정 그림을 바꾼다 ---- */
   const PF = ctx.player, VF = art.villain && typeof art.villain === "object" ? art.villain : null;
   let kP = 1, kV = 1, poseP = "idle", poseV = "taunt";
-  const pHTML = (pose) => (PF ? pix(PF[pose], kP) : ctx.avatar(pose !== "idle"));
+  const pHTML = (pose) => (PF ? pix(PF[pose], kP) + (ctx.badge || "") : ctx.avatar(pose !== "idle")); // badge: 등급 띠·왕관 덧그림
   const setP = (pose) => { poseP = pose; P.innerHTML = pHTML(pose); };
   const setV = (pose) => { poseV = pose; if (VF) V.innerHTML = pix({ ...VF[pose], src: BASE + "battle/" + VF[pose].src }, kV); };
   const fit = () => {
