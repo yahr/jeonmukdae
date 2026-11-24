@@ -76,3 +76,25 @@ test("생성 횟수: 전체 하루 상한이 차면 무료는 막힘, 유료는 
   assert.equal(p.dayFull, false);
   assert.equal(p.limit, null);
 });
+
+import { parseBearer, linkPlan } from "../worker/src/gauth.js";
+
+test("인증 헤더: 구글 세션(s:토큰)만 받고 닉네임·PIN은 받지 않는다", () => {
+  const tok = "a".repeat(64);
+  assert.deepEqual(parseBearer(`Bearer s:${tok}`), { token: tok });
+  assert.equal(parseBearer("Bearer u_abc123:1234"), null);
+  assert.equal(parseBearer("Bearer s:short"), null);
+  assert.equal(parseBearer(""), null);
+});
+
+test("구글 입장: 새 계정은 구글로만, 예전 계정은 닉네임+PIN이 맞아야 연결", () => {
+  assert.deepEqual(linkPlan({ linkedUid: "u_x", nick: "아무거나" }), { do: "login", uid: "u_x" });
+  assert.deepEqual(linkPlan({ linkedUid: null, nick: "" }), { need: "nick" });
+  assert.equal(linkPlan({ linkedUid: null, nick: "가".repeat(13) }).status, 400);
+  assert.deepEqual(linkPlan({ linkedUid: null, nick: "새사람", existing: false }), { do: "create" });
+  const wrong = linkPlan({ linkedUid: null, nick: "옛사람", existing: true, pinOk: false });
+  assert.equal(wrong.status, 403);
+  assert.equal(wrong.need, "pin");
+  assert.equal(linkPlan({ linkedUid: null, nick: "옛사람", existing: true, pinOk: true, uidLinked: true }).status, 409);
+  assert.deepEqual(linkPlan({ linkedUid: null, nick: "옛사람", existing: true, pinOk: true, uidLinked: false }), { do: "link" });
+});

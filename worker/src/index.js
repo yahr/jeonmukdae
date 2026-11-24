@@ -1,7 +1,8 @@
 // 전국먹자대회 API Worker
 //   카카오 중계:  GET /api/places?q=…   GET /api/place?id=…
-//   신원:         POST /auth {nick, pin}            → {uid, name, isNew}
-//                 POST /auth/google {credential, nick?, pin?} → {uid, name, token} | {need:"nick"}  (Authorization: Bearer s:token)
+//   신원:         POST /auth/google {credential, nick?, pin?} → {uid, name, token} | {need:"nick"}  (Authorization: Bearer s:token)
+//                 계정은 구글로만(2026-11-24). 예전 닉네임+PIN 계정은 구글 입장 때 nick+pin으로 연결만 된다. POST /auth 는 410
+
 //   문서 저장소:  GET /db/sync?cols=a,b&since=t    → 바뀐 문서(삭제 포함)
 //                 GET /db/list?col=   GET /db/get?path=
 //                 POST /db/set?path=  POST /db/update?path=  POST /db/delete?path=   (Authorization: Bearer uid:pin)
@@ -11,7 +12,7 @@
 // ponytail: 권한은 "내가 만든 문서는 내가 고친다 + 남의 미션엔 내 표·내 격파만" 수준. 관리자 기능 없음.
 
 import { playerPrompt } from "../../assets/sprite.js";
-import { verifyGoogleIdToken, genKeys, genLimit, PAID_PER_DAY } from "./gauth.js";
+import { verifyGoogleIdToken, genKeys, genLimit, PAID_PER_DAY, parseBearer, linkPlan } from "./gauth.js";
 
 const PROXY = "https://k-skill-proxy.nomadamas.org/v1/kakao-map/search/keyword";
 const PLACE_API = "https://place-api.map.kakao.com/places/panel3/";
@@ -51,19 +52,12 @@ async function placeInfo(pid) {
 }
 
 /* ---------- 신원 ---------- */
-// 닉네임+PIN(Bearer uid:pin) 또는 구글 로그인 세션(Bearer s:token). 구글 세션이면 sub도 돌려준다
+// 구글 로그인 세션(Bearer s:token)만 인증. 예전 닉네임+PIN 헤더는 null(브라우저가 401을 받고 구글 연결로 안내)
 async function whoami(env, request) {
-  const h = request.headers.get("Authorization") || "";
-  const s = /^Bearer\s+s:([0-9a-f]{64})$/.exec(h);
-  if (s) {
-    const row = await env.DB.prepare("SELECT uid, sub FROM sessions WHERE h=?").bind(await sha256(s[1])).first();
-    return row ? { uid: row.uid, sub: row.sub } : null;
-  }
-  const m = /^Bearer\s+(u_[a-z0-9]+):(\d{4,8})$/.exec(h);
-  if (!m) return null;
-  const row = await env.DB.prepare("SELECT pinhash FROM players WHERE uid=?").bind(m[1]).first();
-  if (!row || row.pinhash !== (await sha256(`${m[2]}:${m[1]}`))) return null;
-  return { uid: m[1], sub: null };
+  const b = parseBearer(request.headers.get("Authorization"));
+  if (!b) return null;
+  const row = await env.DB.prepare("SELECT uid, sub FROM sessions WHERE h=?").bind(await sha256(b.token)).first();
+  return row ? { uid: row.uid, sub: row.sub } : null;
 }
 const auth = async (env, request) => (await whoami(env, request))?.uid || null;
 
@@ -79,54 +73,29 @@ async function handleGoogle(env, request) {
     p = await verifyGoogleIdToken(credential, { aud: env.GOOGLE_CLIENT_ID, keys: (await r.json()).keys || [] });
   } catch { return json({ error: "구글 로그인을 확인하지 못했어요. 다시 눌러 주세요" }, 401); }
   const sub = p.sub, t = Date.now();
-  let link = await env.DB.prepare("SELECT uid FROM google_links WHERE sub=?").bind(sub).first();
-  let isNew = false;
-  if (!link) {
-    const n = String(nick).trim().normalize("NFC");
-    if (!n) return json({ need: "nick" });
-    if (n.length > 12) return json({ error: "닉네임은 1~12자" }, 400);
-    const uid = "u_" + (await sha256("nick:" + n.toLowerCase())).slice(0, 20);
-    const row = await env.DB.prepare("SELECT pinhash FROM players WHERE uid=?").bind(uid).first();
-    if (row) {
-      if (!row.pinhash || row.pinhash !== (await sha256(`${pin}:${uid}`)))
-        return json({ error: "이미 있는 닉네임이에요. 내 닉네임이면 그 PIN을 같이 넣어 연결해요", need: "pin" }, 403);
-      if (await env.DB.prepare("SELECT 1 FROM google_links WHERE uid=?").bind(uid).first())
-        return json({ error: "이 닉네임은 이미 다른 구글 계정에 연결돼 있어요" }, 409);
-    } else {
-      isNew = true;
-      const ph = /^\d{4,8}$/.test(String(pin)) ? await sha256(`${pin}:${uid}`) : ""; // PIN을 안 넣으면 빈칸 → PIN 입장 불가, 구글로만
-      await env.DB.batch([
-        env.DB.prepare("INSERT INTO players (uid,nick,pinhash,t) VALUES (?,?,?,?)").bind(uid, n, ph, t),
-        env.DB.prepare("INSERT OR IGNORE INTO docs (path,col,body,t) VALUES (?,?,?,?)").bind("players/" + uid, "players", JSON.stringify({ name: n, t }), t),
-      ]);
-    }
-    await env.DB.prepare("INSERT INTO google_links (sub,uid,t) VALUES (?,?,?)").bind(sub, uid, t).run();
-    link = { uid };
-  }
-  const token = [...crypto.getRandomValues(new Uint8Array(32))].map((x) => x.toString(16).padStart(2, "0")).join("");
-  await env.DB.prepare("INSERT INTO sessions (h,uid,sub,t) VALUES (?,?,?,?)").bind(await sha256(token), link.uid, sub, t).run();
-  const name = (await env.DB.prepare("SELECT nick FROM players WHERE uid=?").bind(link.uid).first())?.nick || "";
-  return json({ uid: link.uid, name, token, isNew });
-}
-
-async function handleAuth(env, request) {
-  const { nick = "", pin = "" } = await request.json().catch(() => ({}));
+  const link = await env.DB.prepare("SELECT uid FROM google_links WHERE sub=?").bind(sub).first();
   const n = String(nick).trim().normalize("NFC");
-  if (n.length < 1 || n.length > 12) return json({ error: "닉네임은 1~12자" }, 400);
-  if (!/^\d{4,8}$/.test(String(pin))) return json({ error: "PIN은 숫자 4~8자리" }, 400);
-  const uid = "u_" + (await sha256("nick:" + n.toLowerCase())).slice(0, 20);
-  const pinhash = await sha256(`${pin}:${uid}`);
-  const row = await env.DB.prepare("SELECT pinhash FROM players WHERE uid=?").bind(uid).first();
-  if (row) {
-    if (row.pinhash !== pinhash) return json({ error: "PIN이 달라요. 이미 쓰는 닉네임이면 같은 PIN을 넣어요" }, 403);
-    return json({ uid, name: n, isNew: false });
+  const uidOf = async () => "u_" + (await sha256("nick:" + n.toLowerCase())).slice(0, 20);
+  let uid = link?.uid, plan = { do: "login" };
+  if (!link) {
+    uid = n ? await uidOf() : null;
+    const row = uid && (await env.DB.prepare("SELECT pinhash FROM players WHERE uid=?").bind(uid).first());
+    plan = linkPlan({ linkedUid: null, nick: n, existing: !!row,
+      pinOk: !!row?.pinhash && row.pinhash === (await sha256(`${pin}:${uid}`)),
+      uidLinked: !!row && !!(await env.DB.prepare("SELECT 1 FROM google_links WHERE uid=?").bind(uid).first()) });
+    if (plan.need === "nick") return json({ need: "nick" });
+    if (plan.status) return json({ error: plan.error, need: plan.need }, plan.status);
+    if (plan.do === "create") await env.DB.batch([ // 구글로 만든 계정은 PIN 없음
+      env.DB.prepare("INSERT INTO players (uid,nick,pinhash,t) VALUES (?,?,?,?)").bind(uid, n, "", t),
+      env.DB.prepare("INSERT OR IGNORE INTO docs (path,col,body,t) VALUES (?,?,?,?)").bind("players/" + uid, "players", JSON.stringify({ name: n, t }), t),
+    ]);
+    await env.DB.prepare("INSERT INTO google_links (sub,uid,t) VALUES (?,?,?)").bind(sub, uid, t).run();
   }
-  const t = Date.now();
-  await env.DB.batch([
-    env.DB.prepare("INSERT INTO players (uid,nick,pinhash,t) VALUES (?,?,?,?)").bind(uid, n, pinhash, t),
-    env.DB.prepare("INSERT OR IGNORE INTO docs (path,col,body,t) VALUES (?,?,?,?)").bind("players/" + uid, "players", JSON.stringify({ name: n, t }), t),
-  ]);
-  return json({ uid, name: n, isNew: true });
+  const isNew = plan.do === "create";
+  const token = [...crypto.getRandomValues(new Uint8Array(32))].map((x) => x.toString(16).padStart(2, "0")).join("");
+  await env.DB.prepare("INSERT INTO sessions (h,uid,sub,t) VALUES (?,?,?,?)").bind(await sha256(token), uid, sub, t).run();
+  const name = (await env.DB.prepare("SELECT nick FROM players WHERE uid=?").bind(uid).first())?.nick || "";
+  return json({ uid, name, token, isNew, linked: plan.do === "link" });
 }
 
 /* ---------- 사진: dataURL → R2 ---------- */
@@ -192,7 +161,7 @@ async function handleDb(env, request, url, origin) {
   }
   // 쓰기
   const uid = await auth(env, request);
-  if (!uid) return json({ error: "닉네임·PIN으로 입장해야 기록할 수 있어요" }, 401);
+  if (!uid) return json({ error: "구글로 입장해야 기록할 수 있어요" }, 401);
   const path = url.searchParams.get("path") || "";
   if (!PATH_RE.test(path) || path.split("/").length % 2) return json({ error: "bad path" }, 400);
   const existing = await getDoc(env, path);
@@ -229,7 +198,6 @@ const AV_OK = { hair: ["short", "long", "bun", "mohawk", "bald"], acc: ["none", 
 async function handleAvatar(env, request) {
   const who = await whoami(env, request);
   if (!who) return json({ error: "입장해야 캐릭터를 만들 수 있어요" }, 401);
-  if (!who.sub) return json({ error: "캐릭터 만들기는 구글 로그인 후에 할 수 있어요", needGoogle: true }, 403);
   if (!env.GEMINI_API_KEY) return json({ error: "캐릭터 생성이 아직 꺼져 있어요" }, 503);
   const { avatar = {}, lvl = 0, image = null, kind = null } = await request.json().catch(() => ({}));
   const av = { skin: Math.max(0, Math.min(3, avatar.skin | 0)), hairc: Math.max(0, Math.min(5, avatar.hairc | 0)),
@@ -271,7 +239,7 @@ export default {
       if (!obj) return new Response("not found", { status: 404, headers: CORS });
       return new Response(obj.body, { headers: { "Content-Type": obj.httpMetadata?.contentType || "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ...CORS } });
     }
-    if (url.pathname === "/auth" && request.method === "POST") return handleAuth(env, request);
+    if (url.pathname === "/auth" && request.method === "POST") return json({ error: "이제 구글 계정으로만 입장해요. 예전 닉네임·PIN은 구글 입장 때 넣으면 기록이 이어져요" }, 410);
     if (url.pathname === "/avatar/gen" && request.method === "POST") return handleAvatar(env, request);
     if (url.pathname === "/auth/google" && request.method === "POST") return handleGoogle(env, request);
     if (url.pathname === "/avatar/quota") { const who = await whoami(env, request); return who ? json(await genQuota(env, who)) : json({ error: "입장 필요" }, 401); }
