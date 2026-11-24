@@ -32,6 +32,16 @@ ART = {
 }
 
 
+# 대결 배경(가게 앞, 밤): 간판 자리는 글자 없는 검은 판. 매장 이름은 화면에서 네온 글자로 올린다(AI 한글은 깨짐)
+BG_STYLE = ("Retro 16-bit arcade fighting game stage background, pixel art, crisp pixels, no characters, no people. Night time, dim and moody so "
+            "characters in front stand out: deep navy and purple shadows with warm amber window light. Composition for a phone screen: the top 30% of the "
+            "image is a dark plain wall with one wide completely BLANK black signboard centered horizontally (an empty dark panel, absolutely no letters, "
+            "no symbols, no numbers, no logo); below it the shop front at street level; the bottom 15% is the ground/sidewalk. No text anywhere, no watermark.")
+BGS = {
+    "jjinmandu": "A small Korean steamed dumpling shop front in a quiet alley: stacked bamboo steamers by the window, a fogged-up window glowing warm with steam, a wooden sliding door, a paper lantern.",
+    "sundaeguk": "An old Korean sundaeguk soup restaurant front (a decades-old noodle-house style): steam rising from black earthenware ttukbaegi bowls seen through a fogged sliding glass door, red plastic stools outside, a worn tiled wall.",
+}
+
 # 2x2 표정 시트: 이름 → (manifest 위치, 프레임 이름들, 프롬프트 만드는 법, 모델 선호)
 VILLAIN_PROMPT = (ROOT / "scripts/prompts/villain-jjinmandu.txt")
 SHEETS = {
@@ -148,10 +158,17 @@ def main():
     manifest = json.loads(mf.read_text()) if mf.exists() else {}
     src = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--from=")), None)
     ref = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--ref=")), None)  # 레퍼런스(우리 그림): --ref=assets/battle/…webp
+    for name in [a for a in args if a.startswith("bg-")]:  # npm run art -- bg-jjinmandu
+        div = name[3:]
+        im = generate(k, model, f"{BGS[div]} {BG_STYLE}", "3:4").convert("RGB")
+        im = im.resize((360, round(im.height * 360 / im.width)), Image.NEAREST)
+        f = f"{div}-bg.webp"; im.save(OUT / f, "WEBP", quality=88)
+        manifest.setdefault(div, {})["bg"] = f
+        print("저장:", f, im.size)
     for name in [a for a in args if a in SHEETS]:
         im = Image.open(src) if src else generate(k, model, SHEETS[name][2](), "1:1", ref)
         save_sheet(name, im, manifest)
-    for name in [a for a in args if a not in SHEETS] if args else ART:
+    for name in [a for a in args if a not in SHEETS and not a.startswith("bg-")] if args else ART:
         div, desc, ratio, width = ART[name]
         im = generate(k, model, f"{desc} {STYLE}", ratio)
         im = key_out(im)  # ko 장면도 모델이 마젠타 테두리를 남기는 일이 있어 같이 지운다

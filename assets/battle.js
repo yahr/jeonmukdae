@@ -43,6 +43,14 @@ const CSS = `
 .bt-arena{position:relative;overflow:hidden;background:linear-gradient(#1d1a3f 0 84%,#2a2350 84% 85.5%,#262253 85.5%);transition:background 1.2s}
 .bt-arena.warm{background:linear-gradient(#ff9f43 0,#ff6f91 84%,#c94f7c 84% 85.5%,#7a3b6b 85.5%)}
 .bt-cam{position:absolute;inset:0;transform-origin:0 0;z-index:2}
+.bt-bg{position:absolute;inset:-6%;transform-origin:0 0;z-index:0;pointer-events:none}
+.bt-bgimg{position:absolute;inset:0;background:#141230 center 30%/cover no-repeat;image-rendering:pixelated;filter:saturate(.7) brightness(.55) blur(.5px)}
+.bt-bgimg::after{content:"";position:absolute;inset:0;background:linear-gradient(#0b0a1a66,#0b0a1a22 45%,#0b0a1a99);transition:background 1.2s}
+.bt-arena.warm .bt-bgimg::after{background:linear-gradient(#ff9f43aa,#ff6f91aa 80%,#7a3b6bcc)}
+.bt-sign{position:absolute;left:50%;top:22%;transform:translateX(-50%);max-width:84%;padding:5px 14px;background:#07061ae6;border:3px solid var(--neon);border-radius:8px;box-shadow:0 0 4px var(--neon),0 0 16px var(--neon),inset 0 0 10px color-mix(in srgb,var(--neon) 60%,transparent)}
+.bt-sign-t{display:block;white-space:nowrap;font-family:var(--ko);font-size:30px;line-height:1.15;color:#fff;text-shadow:0 0 2px #fff,0 0 6px var(--neon),0 0 14px var(--neon),0 0 26px var(--neon)}
+.bt-sign .fl{animation:bt-flick 5s steps(1) infinite}
+@keyframes bt-flick{0%,90%,93%,96%,100%{opacity:1}91%,95%{opacity:.18;text-shadow:none}}
 .bt-breathe{position:absolute;inset:0;transform-origin:50% 92%;animation:bt-breath 3.2s ease-in-out infinite}
 @keyframes bt-breath{50%{transform:scale(1.015)}}
 .pix{image-rendering:pixelated;display:block;max-width:none}
@@ -58,9 +66,9 @@ const CSS = `
 @keyframes bt-bob{50%{transform:translateY(-8px)}}
 .bt-fx{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
 .bt-num{position:absolute;font-family:var(--ko);font-size:34px;color:var(--y);text-shadow:3px 3px 0 var(--m),-1px -1px 0 #000;white-space:nowrap}
-.bt-move{position:absolute;left:50%;top:10%;transform:translateX(-50%);font-size:clamp(28px,9vw,50px);color:#fff;text-shadow:4px 4px 0 var(--m),-2px -2px 0 #000;white-space:nowrap}
+.bt-move{position:absolute;left:50%;top:33%;transform:translateX(-50%);font-size:clamp(28px,9vw,50px);color:#fff;text-shadow:4px 4px 0 var(--m),-2px -2px 0 #000;white-space:nowrap}
 .bt-move small{display:block;text-align:center;font-size:16px;color:var(--y);text-shadow:2px 2px 0 #000}
-.bt-combo{position:absolute;right:4%;top:28%;font-family:var(--px);font-size:16px;color:var(--c);text-shadow:3px 3px 0 #000;white-space:nowrap}
+.bt-combo{position:absolute;right:4%;top:46%;font-family:var(--px);font-size:16px;color:var(--c);text-shadow:3px 3px 0 #000;white-space:nowrap}
 .bt-combo.over{color:var(--y);font-size:20px;text-shadow:3px 3px 0 var(--m)}
 .bt-flash{position:absolute;inset:0;background:#fff;opacity:0}
 .bt-big{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);font-family:var(--ko);font-size:clamp(48px,16vw,96px);line-height:1;color:var(--y);text-shadow:5px 5px 0 var(--m),-2px -2px 0 #000;white-space:nowrap}
@@ -102,7 +110,7 @@ const CSS = `
 .bt-steam i{position:absolute;bottom:-60px;width:90px;height:90px;border-radius:50%;background:radial-gradient(#ffffffaa,#fff0 70%);animation:bt-rise 4s linear infinite}
 @keyframes bt-rise{to{transform:translateY(-120vh) scale(2);opacity:0}}
 .bt-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-@media (prefers-reduced-motion:reduce){.bt-v .emo,.bt-down .lie,.bt-steam i,.bt-breathe{animation:none}.bt-hp i,.bt-hp u{transition:none}}
+@media (prefers-reduced-motion:reduce){.bt-v .emo,.bt-down .lie,.bt-steam i,.bt-breathe,.bt-sign .fl{animation:none}.bt-hp i,.bt-hp u{transition:none}}
 `;
 
 /**
@@ -132,6 +140,8 @@ export async function openBattle(ctx) {
       <div class="bt-src">느낀 맛을 눌러요 · 같은 맛 또 누르면 더 세게 · ${src}</div>
     </div>
     <div class="bt-arena">
+      <div class="bt-bg"><div class="bt-bgimg"${typeof art.bg === "string" ? ` style="background-image:url('${BASE}battle/${esc(art.bg)}')"` : ""}></div>
+        <div class="bt-sign" style="--neon:${esc(art.neon || "#ff4fa3")}"><span class="bt-sign-t">${[...ctx.target.name].map((ch) => `<span>${esc(ch)}</span>`).join("")}</span></div></div>
       <div class="bt-cam"><div class="bt-breathe">
         <div class="bt-p" data-p></div>
         <div class="bt-v" data-v><span class="horn l"></span><span class="horn r"></span><span class="emo">${esc(ctx.emoji)}</span></div>
@@ -142,7 +152,7 @@ export async function openBattle(ctx) {
     <div class="bt-live" aria-live="polite"></div>
   </div>`;
   const $ = (q) => dlg.querySelector(q);
-  const arena = $(".bt-arena"), fx = $(".bt-fx"), cv = $("canvas"), P = $("[data-p]"), V = $("[data-v]"), cam = $(".bt-cam"), stage = $(".bt-breathe");
+  const bg = $(".bt-bg"), sign = $(".bt-sign"), arena = $(".bt-arena"), fx = $(".bt-fx"), cv = $("canvas"), P = $("[data-p]"), V = $("[data-v]"), cam = $(".bt-cam"), stage = $(".bt-breathe");
   const live = (t) => ($(".bt-live").textContent = t);
 
   /* ---- 캐릭터: 정수 배율로 크게(화면 높이 40% 안팎), 상황마다 표정 그림을 바꾼다 ---- */
@@ -160,15 +170,21 @@ export async function openBattle(ctx) {
   };
 
   /* ---- 카메라: (x,y) 지점을 무대 가운데 위쪽으로. 움직임 줄이기면 즉시 컷 ---- */
-  const go = (tf, ms, easing = "ease-out") => {
-    const from = getComputedStyle(cam).transform;
-    cam.getAnimations().forEach((a) => a.cancel());
-    cam.style.transform = tf;
-    return reduce() || !ms ? Promise.resolve() : cam.animate([{ transform: from === "none" ? "translate(0px,0px) scale(1)" : from }, { transform: tf }], { duration: ms, easing }).finished.catch(() => {});
+  // 배경(간판 포함)은 카메라의 PAR 만큼만 따라 움직인다(패럴랙스). 움직임 줄이기면 배경은 고정
+  const PAR = 0.25;
+  const move = (el, t, ms, easing) => {
+    const from = getComputedStyle(el).transform;
+    el.getAnimations().forEach((a) => a.cancel());
+    el.style.transform = t;
+    return reduce() || !ms ? Promise.resolve() : el.animate([{ transform: from === "none" ? "translate(0px,0px) scale(1)" : from }, { transform: t }], { duration: ms, easing }).finished.catch(() => {});
   };
-  const camAt = (x, y, sc, ms, easing) => go(`translate(${arena.clientWidth / 2 - x * sc}px,${arena.clientHeight * 0.42 - y * sc}px) scale(${sc})`, ms, easing);
+  const view = (tx, ty, sc, ms, easing = "ease-out") => {
+    if (!reduce()) move(bg, `translate(${tx * PAR}px,${ty * PAR}px) scale(${1 + (sc - 1) * PAR})`, ms, easing);
+    return move(cam, `translate(${tx}px,${ty}px) scale(${sc})`, ms, easing);
+  };
+  const camAt = (x, y, sc, ms, easing) => view(arena.clientWidth / 2 - x * sc, arena.clientHeight * 0.42 - y * sc, sc, ms, easing);
   const camTo = (el, fy, sc, ms, easing) => camAt(el.offsetLeft + el.offsetWidth / 2, el.offsetTop + el.offsetHeight * fy, sc, ms, easing);
-  const camReset = (ms) => go("translate(0px,0px) scale(1)", ms);
+  const camReset = (ms) => view(0, 0, 1, ms);
   let seq = 0;
 
   const close = () => { dlg.close(); dlg.remove(); };
@@ -320,6 +336,7 @@ export async function openBattle(ctx) {
     setP("bite");
     camTo(P, 0.24, 1.5, fast ? 90 : 120);
     flash();
+    if (!reduce()) sign.animate([{ filter: "brightness(1)" }, { filter: "brightness(2.6) saturate(1.4)", transform: "translateX(-50%) scale(1.08)" }, { filter: "brightness(1)" }], { duration: 300, easing: "ease-out" }); // 히트 때 네온이 번쩍
     await hitStop(st.ko ? 150 : 80);
     fx.querySelectorAll(".bt-move,.bt-combo").forEach((el) => el.remove()); // 연타해도 이름은 하나만
     const banner = add(`${esc(m.name)}!<small>“${esc(m.feel)}”</small>`, "bt-move");
@@ -352,7 +369,7 @@ export async function openBattle(ctx) {
     const W = arena.clientWidth, H = arena.clientHeight, dx = -Math.min(W * 0.34, 150), up = H * 0.26, T = 1600;
     const frameAll = (ms) => { // 누운 플레이어와 빌런이 다 보이게
       const minX = P.offsetLeft + dx, maxX = V.offsetLeft + V.offsetWidth, sc = Math.min(1, (W - 16) / (maxX - minX));
-      return go(`translate(${8 - minX * sc}px,${H * 0.91 * (1 - sc)}px) scale(${sc})`, ms);
+      return view(8 - minX * sc, H * 0.91 * (1 - sc), sc, ms);
     };
     if (reduce()) { // 컷: 타격 → 누운 모습 → 문구
       P.style.transform = `translateX(${dx}px)`; setP("down"); frameAll(0);
@@ -436,6 +453,13 @@ export async function openBattle(ctx) {
   dlg.showModal();
   if (VF) V.replaceChildren();
   fit();
+  { // 네온 간판: 한 줄에 맞게 글자 크기 줄이기, 가끔 한두 글자 깜빡
+    const t = sign.querySelector(".bt-sign-t"), max = arena.clientWidth * 0.84 - 32;
+    let f = 30; t.style.fontSize = f + "px";
+    while (t.scrollWidth > max && f > 12) t.style.fontSize = --f + "px";
+    const ch = [...t.children].filter((c) => c.textContent.trim());
+    for (let k = 0; k < Math.min(2, ch.length); k++) { const c = ch[Math.floor(Math.random() * ch.length)]; c.classList.add("fl"); c.style.animationDelay = (Math.random() * 4).toFixed(2) + "s"; }
+  }
   setHP();
   setTimeout(() => { if (!s.presses) setV("idle"); }, 1600); // 도발하다가 대기
   $("[data-f]").focus();

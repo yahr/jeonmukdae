@@ -391,7 +391,7 @@ function renderSelect(){
   if(!db)return;
   [...c.current,...c.past].forEach(async s=>{try{
     const sp=(await db.collection(`menus/${s.menu}/spots`).get()).docs.map(d=>d.data()).filter(d=>inSeason(d,s));
-    document.querySelectorAll(`[data-cnt="${s.menu}"]`).forEach(el=>el.textContent=sp.length);
+    document.querySelectorAll(`[data-cnt="${s.menu}"]`).forEach(el=>el.textContent=sp.length||'아직 없음');
     const top=document.querySelector(`[data-top="${s.menu}"]`);if(!top)return;
     const ko=(await db.collection(`menus/${s.menu}/kos`).get()).docs.map(d=>d.data()).filter(d=>inSeason(d,s));
     const v=(await (coreMod??=import('./assets/battle-core.js'))).villainRank(ko)[0];top.textContent=v?v.name:'없음';
