@@ -185,7 +185,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .sprw{position:relative;display:inline-block;line-height:0}.charav .sprw{max-width:100%}
 .belt{position:absolute;right:-3px;bottom:6%;aspect-ratio:3/1;border:2px solid #000;box-shadow:2px 2px 0 #0008;background:linear-gradient(90deg,var(--bc) 0 38%,#0004 38% 44%,var(--bc) 44% 56%,#0004 56% 62%,var(--bc) 62%)}
 .crown{position:absolute;left:50%;top:-.7em;transform:translateX(-50%);line-height:1;font-style:normal}
-.quota{font-size:16px;color:var(--y);word-break:keep-all}.confirm{border:3px dashed var(--y);padding:10px;display:grid;gap:8px;word-break:keep-all;font-size:16px}.confirm b{font-weight:400;color:var(--y)}.cf-shot{width:96px;border:2px solid var(--fg);transform:scaleX(-1)}
+.quota{font-size:16px;color:var(--y);word-break:keep-all}.confirm{border:3px dashed var(--y);padding:10px;display:grid;gap:8px;word-break:keep-all;font-size:16px}.confirm b{font-weight:400;color:var(--y)}.cf-shot{width:96px;border:2px solid var(--fg)}#camui h2{word-break:keep-all}
 .dsg-note{font-size:13px;color:var(--dim);margin-top:6px;word-break:keep-all}.consent{font-size:14px;color:var(--dim);word-break:keep-all}
 .xpbar{height:12px;border:3px solid var(--fg);background:var(--bg);padding:2px}
 .xpbar div{height:100%;background:var(--g);transition:width .6s steps(12)}
@@ -722,19 +722,23 @@ const won=n=>n?Number(n).toLocaleString('ko-KR')+'원':'';
    ponytail: localStorage 저장이라 장당 ~60KB, 격파 3장·평가 2장 제한 */
 let cam2=null;const stopCam2=()=>{cam2?.getTracks().forEach(t=>t.stop());cam2=null};
 $('#camdlg').addEventListener('close',stopCam2);
-function captureShot(title,o={}){ // o: {facing:'user', mirror, max, guide, sub, onDenied}. 기본은 음식 촬영(후면)
+function captureShot(title,o={}){ // o: {facing:'user', mirror, max, guide, sub, flip(앞뒤 전환), onDenied}. 기본은 음식 촬영(후면)
   return new Promise(resolve=>{
     let shot=null,done=false;const finish=v=>{if(done)return;done=true;stopCam2();$('#camdlg').close();resolve(v)};
     $('#camui').innerHTML=`<div class="top"><div><span class="tape">SHOOT</span><h2 style="margin-top:8px">${esc(title)}</h2><div class="meta sub">${esc(o.sub||'첨부 불가 · 지금 눈앞의 음식만')}</div></div><button class="btn ghost" type="button" id="cam-x">✕</button></div>
-      <div class="cam${o.mirror?' mirror':''}${o.facing==='user'?' selfie':''}"><video id="cam2-view" autoplay playsinline muted></video><img id="cam2-prev" alt="촬영본" hidden>${o.guide?'<div class="camguide" aria-hidden="true"></div>':''}<div class="camover" id="cam2-msg">카메라 켜는 중…</div></div>
-      <div class="inline" style="align-items:center"><button class="btn sec" type="button" id="cam2-shutter" disabled>📸 찰칵</button><button class="btn ghost" type="button" id="cam2-retake" hidden>↺ 다시</button><button class="btn" type="button" id="cam2-use" disabled>이 사진 쓰기</button></div>`;
+      <div class="cam${o.mirror&&o.facing==='user'?' mirror':''}${o.facing==='user'?' selfie':''}" id="cam2-box"><video id="cam2-view" autoplay playsinline muted></video><img id="cam2-prev" alt="촬영본" hidden>${o.guide?'<div class="camguide" aria-hidden="true"></div>':''}<div class="camover" id="cam2-msg">카메라 켜는 중…</div></div>
+      <div class="inline" style="align-items:center"><button class="btn sec" type="button" id="cam2-shutter" disabled>📸 찰칵</button>${o.flip?'<button class="btn ghost" type="button" id="cam2-flip" aria-label="앞뒤 카메라 바꾸기">🔄</button>':''}<button class="btn ghost" type="button" id="cam2-retake" hidden>↺ 다시</button><button class="btn" type="button" id="cam2-use" disabled>이 사진 쓰기</button></div>`;
     const v=$('#cam2-view'),prev=$('#cam2-prev'),msg=$('#cam2-msg');
     $('#cam-x').onclick=()=>finish(null);$('#camdlg').addEventListener('close',()=>finish(null),{once:true});
-    (async()=>{
+    let face=o.facing||'environment';const tall=o.facing==='user'; /* 캐릭터 촬영은 앞·뒤 모두 세로 칸 */
+    const open=async()=>{
       if(!navigator.mediaDevices?.getUserMedia){msg.textContent='이 브라우저는 카메라를 못 써요. 폰에서 찍어요.';o.onDenied?.();return}
-      try{cam2=await navigator.mediaDevices.getUserMedia({video:o.facing==='user'?{facingMode:'user',width:{ideal:720},height:{ideal:960},aspectRatio:{ideal:0.75}}:{facingMode:o.facing||'environment',width:{ideal:1280}},audio:false});v.srcObject=cam2;msg.hidden=true;$('#cam2-shutter').disabled=false}
-      catch(err){msg.textContent=(err.name==='NotAllowedError'?'카메라 권한을 허용해야 찍을 수 있어요.':'카메라를 못 찾았어요.')+(o.onDenied?' 대신 랜덤 생성은 돼요.':'');o.onDenied?.()}
-    })();
+      stopCam2();$('#cam2-shutter').disabled=true;$('#cam2-box').classList.toggle('mirror',!!o.mirror&&face==='user'); /* 뒤 카메라는 거울 반전 끔 */
+      try{cam2=await navigator.mediaDevices.getUserMedia({video:tall?{facingMode:face,width:{ideal:720},height:{ideal:960},aspectRatio:{ideal:0.75}}:{facingMode:face,width:{ideal:1280}},audio:false});v.srcObject=cam2;msg.hidden=true;$('#cam2-shutter').disabled=false}
+      catch(err){msg.hidden=false;msg.textContent=(err.name==='NotAllowedError'?'카메라 권한을 허용해야 찍을 수 있어요.':'카메라를 못 찾았어요.')+(o.onDenied?' 대신 랜덤 생성은 돼요.':'');o.onDenied?.()}
+    };
+    open();
+    if(o.flip)$('#cam2-flip').onclick=()=>{face=face==='user'?'environment':'user';$('#cam2-retake').click();open()};
     $('#cam2-shutter').onclick=()=>{const r=Math.min(1,(o.max||640)/Math.max(v.videoWidth,v.videoHeight));/* 저장본은 거울 반전 없는 원본 */const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*r);c.height=Math.round(v.videoHeight*r);
       c.getContext('2d').drawImage(v,0,0,c.width,c.height);shot=c.toDataURL('image/jpeg',.72);prev.src=shot;prev.hidden=false;v.hidden=true;$('#cam2-shutter').hidden=true;$('#cam2-retake').hidden=false;$('#cam2-use').disabled=false};
     $('#cam2-retake').onclick=()=>{shot=null;prev.hidden=true;v.hidden=false;$('#cam2-shutter').hidden=false;$('#cam2-retake').hidden=true;$('#cam2-use').disabled=true};
@@ -968,7 +972,7 @@ function openDesigner(){
       <label><span class="px sub">이름</span><input type="text" id="dsg-name" maxlength="10" value="${esc(me.name)}" placeholder="먹신 후보 이름"></label>
       <div class="quota" id="dsg-quota">남은 생성 횟수 확인 중…</div>
       <div class="inline"><button class="btn sec" type="button" id="dsg-photo">📷 사진으로 만들기</button><button class="btn" type="button" id="dsg-random">🎲 랜덤 생성</button></div>
-      <div class="consent">사진은 셀카로 바로 찍어요(앨범 첨부 불가). 찍은 사진은 외부 AI 이미지 서비스로 보내 캐릭터를 그리는 데만 쓰고 서버에 저장하지 않아요.</div>
+      <div class="consent">사진은 카메라로 바로 찍어요(앨범 첨부 불가). 찍힌 만큼 옷도 반영돼요. 찍은 사진은 외부 AI 이미지 서비스로 보내 캐릭터를 그리는 데만 쓰고 서버에 저장하지 않아요.</div>
       <div class="confirm" id="dsg-confirm" hidden></div>
       <div class="sub" id="dsg-msg" aria-live="polite"></div>
       <div><button class="btn ghost" type="button" id="dsg-save">이름 저장</button></div></div></div>`;
@@ -986,7 +990,7 @@ function openDesigner(){
     finally{busy=false;showQuota()}};
   $('#dsg-random').onclick=()=>{if(!guard())return;ask(`<b>무작위 모습으로 전신 캐릭터를 만들어요.</b> ${useText()}. 만들까요?`,()=>run(null))};
   const shoot=async()=>{if(!guard())return;$('#dsg-confirm').hidden=true;
-    const shot=await captureShot('셀카로 내 캐릭터 만들기',{facing:'user',mirror:true,max:512,guide:true,sub:'얼굴이 화면 가운데 오게, 밝은 곳에서 찍어요',
+    const shot=await captureShot('사진으로 내 캐릭터 만들기',{facing:'user',mirror:true,max:512,flip:true,sub:'얼굴만 · 가슴까지 · 전신 다 돼요, 찍힌 만큼 옷도 반영돼요. 🔄로 뒤 카메라를 켜면 친구가 전신을 찍어 줄 수 있어요',
       onDenied:()=>{camBlocked=true;lock();$('#dsg-msg').textContent='카메라 권한을 허용해야 사진으로 만들 수 있어요, 대신 랜덤 생성은 돼요'}});
     if(!shot)return;
     ask(`<img class="cf-shot" src="${shot}" alt="찍은 사진"><b>이 사진으로 만들기</b> (${useText()}). 만들까요?`,()=>run(shot),'<button class="btn ghost" type="button" id="cf-re">↺ 다시 찍기</button>');$('#cf-re').onclick=shoot};

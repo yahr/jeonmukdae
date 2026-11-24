@@ -83,14 +83,15 @@ export function poseFrames(sp) {
 
 export function playerPrompt(av = {}, lvl = 0, image = null) {
   const hair = av.hair === "bald" ? HAIR_T.bald : `${HAIRC_T[av.hairc] || HAIRC_T[0]} ${HAIR_T[av.hair] || HAIR_T.short}`;
-  const ref = image === "photo"
-    ? "\n\nUse the attached photo only as a likeness reference for the face shape, hairstyle and hair color, simplified into this chibi pixel style. Do not copy the photo background or clothes."
+  const photo = image === "photo";
+  const ref = photo
+    ? "\n\nThe attached photo shows the person this character is based on. Match their face shape, hairstyle and hair color. Dress the character in the clothes visible in the photo, simplified into this chibi pixel style but keeping each item's type and colors: if only the face is visible, design a casual outfit that suits them; if the upper body is visible, keep that top; if the full body is visible, keep the top, bottoms and shoes too. Fill in any parts not visible so they match the visible clothes. Do not copy the photo background, other people or props."
     : image === "ref" ? "\n\nThe attached sprite is this same character: keep exactly the same face, hair and accessories, and only apply the description below (such as the belt color)." : "";
   return `Pixel art character sprite sheet for a retro 2D arcade RPG. A 3x3 grid of nine equal square cells, one pose per cell, the SAME character in every cell (identical face, hair, outfit, colors, proportions), each pose centered in its cell with empty margin, nothing crossing into another cell.
 
 Art style: late-1990s Korean 2D MMORPG sprite quality. Chibi proportions about 2.5 heads tall with a big head, full body from head to feet visible. Crisp hand-placed pixels, 1-pixel dark outline around the whole figure, 4 to 5 shading steps per color, visible cloth folds on the uniform, individual hair strand clusters with highlights. Three-quarter view facing right. Each figure about 80 pixels tall in pixel scale.${ref}
 
-Character: a cheerful young Korean food-challenge fighter. Skin tone: ${SKIN_T[av.skin] || SKIN_T[0]}. ${hair[0].toUpperCase() + hair.slice(1)}. Wears a cream-white martial arts uniform (dobok) with a crossed V-neck collar, loose sleeves and loose trousers, and a ${BELT_T[lvl] || BELT_T[0]} belt tied in a knot at the waist with two hanging ends. Simple dark slip-on shoes. Holds a pair of wooden chopsticks.${ACC_T[av.acc] || ""}${lvl >= 5 ? " A small golden crown floats above the head." : ""}
+Character: ${photo ? `a cheerful food-challenge fighter based on the person in the photo. Wears the outfit described above, with a ${BELT_T[lvl] || BELT_T[0]} cloth belt tied at the waist over the clothes, knotted with two hanging ends` : `a cheerful young Korean food-challenge fighter. Skin tone: ${SKIN_T[av.skin] || SKIN_T[0]}. ${hair[0].toUpperCase() + hair.slice(1)}. Wears a cream-white martial arts uniform (dobok) with a crossed V-neck collar, loose sleeves and loose trousers, and a ${BELT_T[lvl] || BELT_T[0]} belt tied in a knot at the waist with two hanging ends. Simple dark slip-on shoes`}. Holds a pair of wooden chopsticks.${photo ? "" : ACC_T[av.acc] || ""}${lvl >= 5 ? " A small golden crown floats above the head." : ""}
 
 Cells in reading order (left to right, top row first):
 Cell 1 idle: standing ready pose, excited eager grin, sparkling eyes, chopsticks raised.

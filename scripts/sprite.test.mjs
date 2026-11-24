@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sheetFrames, poseFrames, POSES } from "../assets/sprite.js";
+import { sheetFrames, poseFrames, POSES, playerPrompt } from "../assets/sprite.js";
 
 // 2x2 시트 합성: 바탕 마젠타(+왼쪽 위 칸은 보라 그라데이션), 칸마다 검은 테두리 사각형 하나
 function sheet(W = 64) {
@@ -55,4 +55,16 @@ test("동작 9개: 3x3은 그대로, 예전 2x2(grid 없음)는 가까운 프레
   assert.deepEqual(POSES.map((k) => p4[k].src), ["I", "B", "B", "H", "H", "H", "K", "K", "K"]);
   assert.equal(poseFrames({ grid: 3, frames: ["a"], sizes: [[1, 1]] }), null); // 덜 저장된 건 안 씀
   assert.equal(poseFrames(null), null);
+});
+
+test("사진이면 찍힌 만큼 옷을 반영하고 허리에 띠, 사진 없으면 도복", () => {
+  const ph = playerPrompt({ skin: 0, hair: "short", hairc: 0, acc: "none" }, 0, "photo");
+  assert.match(ph, /clothes visible in the photo/);
+  assert.match(ph, /full body is visible/);
+  assert.match(ph, /belt tied at the waist over/);
+  assert.doesNotMatch(ph, /Do not copy the photo background or clothes/);
+  assert.doesNotMatch(ph, /dobok/);
+  const rnd = playerPrompt({ skin: 0, hair: "short", hairc: 0, acc: "none" }, 0);
+  assert.match(rnd, /dobok/);
+  assert.doesNotMatch(rnd, /photo/);
 });
