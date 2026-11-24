@@ -165,7 +165,7 @@ async function handleDb(env, request, url, origin) {
 
 /* ---------- 캐릭터 생성: Gemini(키는 Worker secret GEMINI_API_KEY) ---------- */
 // ponytail: 하루 횟수는 D1 gens 표(사람마다 PER_UID, 전체 PER_DAY). 실패하면 횟수를 돌려준다.
-const PER_UID = 4, PER_DAY = 150;
+const PER_UID = 4, PER_DAY = 30; // 2026-11-24 사용자 결정: 전체 하루 30장(최악 월 약 $60)
 const AV_OK = { hair: ["short", "long", "bun", "mohawk", "bald"], acc: ["none", "band", "glasses", "cap", "towel", "chop", "apron", "ikseon"] };
 async function handleAvatar(env, request) {
   const uid = await auth(env, request);
