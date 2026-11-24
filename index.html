@@ -910,7 +910,7 @@ async function ensureSprite({photo=null,loud=false}={}){
   genBusy=true;if(loud)toast('Gemini가 내 전신 캐릭터를 그리는 중이에요 (10~20초)');
   try{
     const r=await fetch(DBBASE+'/avatar/gen',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authInfo.uid}:${authInfo.pin}`},body:JSON.stringify({avatar:av,lvl,image,kind})});
-    const j=await r.json().catch(()=>({}));if(!r.ok||!j.data)throw new Error(j.error||'캐릭터 그리기 서버가 아직 준비 중이에요');
+    const j=await r.json().catch(()=>({}));if(!r.ok||!j.data)throw new Error([404,405,503].includes(r.status)||!j.error?'캐릭터 그리기 서버가 아직 준비 중이에요. 지금 모습으로 둘게요':j.error);
     const fr=await (await import('./assets/sprite.js')).imageToFrames(`data:${j.mime};base64,${j.data}`);
     await saveMe({sprite:{sig,photo:!!image,frames:fr.map(f=>f.url),sizes:fr.map(f=>[f.w,f.h]),t:Date.now()}});
     const pd=(await db.doc('players/'+uid).get()).data();if(pd?.sprite)me.sprite=pd.sprite; // 서버가 R2 주소로 바꾼 것
