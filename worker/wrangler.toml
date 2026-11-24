@@ -16,7 +16,7 @@ bucket_name = "jeonmukdae-photos"
 [vars]
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image"
 # 구글 로그인 OAuth 클라이언트 ID(공개값). index.html GOOGLE_CLIENT_ID 와 같은 값
-GOOGLE_CLIENT_ID = ""
+GOOGLE_CLIENT_ID = "765294761038-dqid9q4r03u4hf10e4capokif1bh2afm.apps.googleusercontent.com"
 
 # Gemini API가 일부 지역(Cloudflare 엣지 위치)을 막아서 미국 리전에서 실행(2026-11-24 "User location is not supported" 확인)
 [placement]

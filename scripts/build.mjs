@@ -105,11 +105,34 @@ ${body}
 </main>
 <footer class="foot">
 <p>${esc(site.name)}(${esc(site.shortName)}) · 가게 정보는 카카오 로컬 API와 운영자 방문으로 확인해요. 모르는 값은 지어내지 않고 '확인 중'으로 둬요.</p>
-<p><a href="${rel}">게임</a> · <a href="${rel}sitemap.xml">사이트맵</a> · <a href="${rel}llms.txt">llms.txt</a></p>
+<p><a href="${rel}">게임</a> · <a href="${rel}privacy/">개인정보처리방침</a> · <a href="${rel}sitemap.xml">사이트맵</a> · <a href="${rel}llms.txt">llms.txt</a></p>
 </footer>
 </body>
 </html>
 `;
+}
+
+/* ---------- 개인정보처리방침(구글 로그인 앱 게시에 필요, 2026-11-24). 연락처는 OAuth 동의 화면의 지원 이메일과 같게 ---------- */
+export function renderPrivacy({ site }) {
+  const body = `<article>
+<h1>개인정보처리방침</h1>
+<p>${esc(site.name)}(${esc(site.shortName)})은 게임 기록을 남기는 데 꼭 필요한 정보만 받아요. 시행일 2026-11-24.</p>
+<h2>받는 정보와 쓰는 곳</h2>
+<ul>
+<li><b>구글 로그인:</b> 구글 계정의 고유 번호만 저장해서 로그인을 유지하고 캐릭터 생성 횟수를 세요. 이메일·이름·프로필 사진은 저장하지 않아요.</li>
+<li><b>닉네임·PIN:</b> 닉네임은 화면에 보여요. PIN은 되돌릴 수 없는 해시로만 저장해요.</li>
+<li><b>게임 기록:</b> 가게 평가, 행복 KO, 투표, 직접 올린 인증 사진, 만든 캐릭터 그림을 저장하고 다른 플레이어에게 보여 줘요.</li>
+<li><b>셀카:</b> 캐릭터를 사진으로 만들 때만 외부 AI 이미지 서비스로 보내 그림을 그리는 데 쓰고, 사진 자체는 저장하지 않아요.</li>
+<li><b>위치:</b> 주변 가게를 찾을 때만 지도 검색(카카오)에 보내고 저장하지 않아요.</li>
+</ul>
+<h2>맡기는 곳</h2>
+<p>기록·사진 저장은 Cloudflare, 로그인 확인은 Google, 캐릭터 그림은 외부 AI 이미지 서비스, 가게 검색은 카카오를 써요. 그 밖의 곳에 개인정보를 팔거나 넘기지 않아요.</p>
+<h2>보관과 삭제</h2>
+<p>기록은 서비스를 운영하는 동안 보관해요. 내 계정과 기록을 지우고 싶으면 아래 이메일로 닉네임을 알려 주세요. 확인한 뒤 지워요. 브라우저에 남은 로그인 정보는 게임 화면의 "나가기"로 지워져요.</p>
+<h2>문의</h2>
+<p>light.ez.jjack@gmail.com</p>
+</article>`;
+  return page({ site, path: "privacy/", rel: "../", title: `개인정보처리방침 | ${site.name}`, description: `${site.name} 개인정보처리방침`, body });
 }
 
 /* ---------- 페이지별 렌더 ---------- */
@@ -279,7 +302,7 @@ export function build() {
   const links = `<footer class="seo-foot">부문·도장 안내: ${data.divisions.map((dv) => {
     const ds = data.dojos.filter((d) => d.division === dv.slug).sort((a, b) => a.order - b.order);
     return `<a href="division/${dv.slug}/">${esc(dv.name)}</a>${ds.length ? ` (${ds.map((d) => `<a href="dojo/${d.slug}/">${esc(fullName(d))}</a>`).join(" · ")})` : ""}`;
-  }).join(" · ")}</footer>`;
+  }).join(" · ")} · <a href="privacy/">개인정보처리방침</a></footer>`;
   write("index.html", game.replace("<!--SEO-->", homeHead(data)).replace("<!--DOJO-LINKS-->", links));
   cpSync(join(ROOT, "assets"), join(OUT, "assets"), { recursive: true });
   cpSync(join(ROOT, "data"), join(OUT, "data"), { recursive: true });
@@ -289,6 +312,8 @@ export function build() {
   for (const div of data.divisions) { write(`division/${div.slug}/index.html`, renderDivision(data, div)); urls.push({ loc: `${site.baseUrl}/division/${div.slug}/`, pri: "0.9" }); }
   for (const d of data.dojos) { write(`dojo/${d.slug}/index.html`, renderDojo(data, d)); urls.push({ loc: `${site.baseUrl}/dojo/${d.slug}/`, pri: "0.8" }); }
   for (const g of data.guides) { write(`guide/${g.slug}/index.html`, renderGuide(data, g)); urls.push({ loc: `${site.baseUrl}/guide/${g.slug}/`, pri: "0.7" }); }
+
+  write("privacy/index.html", renderPrivacy(data)); urls.push({ loc: `${site.baseUrl}/privacy/`, pri: "0.3" });
 
   write("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${esc(u.loc)}</loc><lastmod>${TODAY}</lastmod><priority>${u.pri}</priority></url>`).join("\n")}\n</urlset>\n`);
   const bots = ["Googlebot", "Yeti", "Bingbot", "GPTBot", "OAI-SearchBot", "ChatGPT-User", "PerplexityBot", "ClaudeBot", "Claude-SearchBot", "Google-Extended", "Applebot"];

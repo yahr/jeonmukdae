@@ -64,7 +64,7 @@ cd worker && wrangler deploy  # API 고칠 때
 - **행복 KO 기록 규칙.** KO 문서는 플레이어가 자기 것만 쓴다(Worker `canWrite`의 `by===uid`). 빌런 순위는 쓰러진 사람 수 → 평균 입 수 순. 문서의 `uses`(기술별 누른 횟수 누적)는 "손님들이 뽑은 필살 무기"용이고 운영자 `stats`와 섞지 않는다. 평가 초안은 폼에 채우기만 하고 저장은 사용자가 누른다. 대결 그림의 표정은 늘 행복해야 하고 찡그림·고통은 다시 만든다.
 - **화면·공개 파일에 'Gemini' 이름을 쓰지 않는다**(2026-11-24 사용자 지시). 사용자에게는 "AI", 동의 문구는 "외부 AI 이미지 서비스"로. 서버 코드·주석·이 문서 같은 비공개 파일은 괜찮지만 `assets/`처럼 배포되는 파일의 주석도 안 된다.
 - **wrangler는 반드시 `worker/` 폴더에서 실행한다.** 저장소 루트에서 `wrangler deploy`를 치면 폴더 전체(`.env` 포함)를 새 정적 사이트로 올리려 한다(2026-11-24 실제로 확인 질문까지 갔음).
-- 캐릭터 생성은 **구글 로그인한 사람만**, 무료는 구글 계정마다 평생 2회(`FREE_TOTAL`, `gens`의 키 `g:<sub>` + 연결 전 그 uid로 쓴 횟수 합산), 전체 하루 30장(`PER_DAY`). 닉네임·PIN 입장은 기록용으로 남아 있고, 구글 계정 하나는 uid 하나에만 연결된다(해제 기능 없음, 필요하면 `google_links` 행을 직접 고친다). OAuth 클라이언트 ID는 공개값이라 `index.html`의 `GOOGLE_CLIENT_ID`와 `worker/wrangler.toml` vars에 같이 넣는다. 유료는 D1 `plans` 표에 uid를 넣는다. Worker는 Gemini 지역 차단 때문에 `[placement] region = "gcp:us-central1"`로 돈다.
+- 캐릭터 생성은 **구글 로그인한 사람만**, 무료는 구글 계정마다 평생 2회(`FREE_TOTAL`, `gens`의 키 `g:<sub>` + 연결 전 그 uid로 쓴 횟수 합산), 전체 하루 30장(`PER_DAY`). 닉네임·PIN 입장은 기록용으로 남아 있고, 구글 계정 하나는 uid 하나에만 연결된다(해제 기능 없음, 필요하면 `google_links` 행을 직접 고친다). OAuth 클라이언트 ID는 공개값이라 `index.html`의 `GOOGLE_CLIENT_ID`와 `worker/wrangler.toml` vars에 같이 넣는다(Google Cloud 프로젝트 "전국먹자대회", 클라이언트 "전먹대 웹"). 앱을 프로덕션으로 게시하려면 같은 도메인의 개인정보처리방침이 필요해서 빌드가 `privacy/`를 만들고 메인 바닥글에 링크한다. 유료는 D1 `plans` 표에 uid를 넣는다. Worker는 Gemini 지역 차단 때문에 `[placement] region = "gcp:us-central1"`로 돈다.
 - **브라우저 저장 키 `sundae-quest-*`는 바꾸지 않는다.** 바꾸면 사용자 로그인이 풀린다(옛 폴더 이름의 흔적).
 - 커밋은 `git -c user.name=yahr -c user.email=light.ez.glona@gmail.com commit …`(전역 git 사용자 미설정), 서명 줄 없이.
 

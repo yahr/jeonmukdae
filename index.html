@@ -1036,7 +1036,7 @@ function remoteUser(db){
     profiles:async ids=>Object.fromEntries(await Promise.all(ids.map(async i=>[i,{id:i,name:await nameOf(i),isMe:i===id}])))};
 }
 /* ---------- 구글 로그인(GIS): ID 토큰 → Worker /auth/google(서명·aud·iss·exp 검증) → 세션 토큰. 캐릭터 만들기는 구글 로그인만 ---------- */
-const GOOGLE_CLIENT_ID=''; // OAuth 클라이언트 ID(공개값). worker/wrangler.toml 의 GOOGLE_CLIENT_ID 와 같은 값. 비어 있으면 버튼이 안 나온다
+const GOOGLE_CLIENT_ID='765294761038-dqid9q4r03u4hf10e4capokif1bh2afm.apps.googleusercontent.com'; // OAuth 클라이언트 ID(공개값). worker/wrangler.toml 의 GOOGLE_CLIENT_ID 와 같은 값. 비어 있으면 버튼이 안 나온다
 let gsiP=null;
 const loadGsi=()=>gsiP||=new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=ok;s.onerror=()=>{gsiP=null;no(new Error('gsi'))};document.head.append(s)});
 async function googleButton(el,onCred){
