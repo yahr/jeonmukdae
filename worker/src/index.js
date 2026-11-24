@@ -1,11 +1,11 @@
 // 전국먹자대회 API Worker
 //   카카오 중계:  GET /api/places?q=…   GET /api/place?id=…
-//   신원:         POST /auth/google {credential, nick?, pin?} → {uid, name, token} | {need:"nick"}  (Authorization: Bearer s:token)
-//                 계정은 구글로만(2026-11-24). 예전 닉네임+PIN 계정은 구글 입장 때 nick+pin으로 연결만 된다. POST /auth 는 410
+//   신원:         POST /auth/google {credential, nick?} → {uid, name, token} | {need:"nick"}  (Authorization: Bearer s:token)
+//                 계정은 구글로만, PIN 없음(2026-11-24)
 
 //   문서 저장소:  GET /db/sync?cols=a,b&since=t    → 바뀐 문서(삭제 포함)
 //                 GET /db/list?col=   GET /db/get?path=
-//                 POST /db/set?path=  POST /db/update?path=  POST /db/delete?path=   (Authorization: Bearer uid:pin)
+//                 POST /db/set?path=  POST /db/update?path=  POST /db/delete?path=   (Authorization: Bearer s:token)
 //   사진:         GET /photo/<key>  (문서 안의 dataURL 사진은 set/update 때 R2로 올리고 URL로 바꿔 저장)
 //   캐릭터 생성:  POST /avatar/gen {avatar, lvl, image?, kind?}  → Gemini 2x2 시트 PNG(base64). 저장 안 함(사진 포함).
 //                 브라우저가 프레임으로 잘라 players/{uid}.sprite.frames 로 저장하면 그때 R2에 올라간다.
@@ -52,7 +52,7 @@ async function placeInfo(pid) {
 }
 
 /* ---------- 신원 ---------- */
-// 구글 로그인 세션(Bearer s:token)만 인증. 예전 닉네임+PIN 헤더는 null(브라우저가 401을 받고 구글 연결로 안내)
+// 구글 로그인 세션(Bearer s:token)만 인증
 async function whoami(env, request) {
   const b = parseBearer(request.headers.get("Authorization"));
   if (!b) return null;
@@ -62,11 +62,11 @@ async function whoami(env, request) {
 const auth = async (env, request) => (await whoami(env, request))?.uid || null;
 
 /* ---------- 구글 로그인: GIS ID 토큰 → Google JWKS로 검증 → google_links(sub ↔ uid) ---------- */
-// 이미 연결된 구글 계정이면 그 uid로. 아니면 닉네임(+있던 계정이면 PIN)으로 연결하거나 새로 만든다. 연결은 바꿀 수 없다.
+// 이미 연결된 구글 계정이면 그 uid로. 아니면 새 닉네임으로 계정을 만든다(이미 쓰는 닉네임은 409). 연결은 바꿀 수 없다.
 // ponytail: 연결 해제·다른 닉네임으로 옮기기 없음. 필요하면 운영자가 wrangler d1 execute로 google_links 행을 고친다.
 async function handleGoogle(env, request) {
   if (!env.GOOGLE_CLIENT_ID) return json({ error: "구글 로그인이 아직 준비 중이에요" }, 503);
-  const { credential = "", nick = "", pin = "" } = await request.json().catch(() => ({}));
+  const { credential = "", nick = "" } = await request.json().catch(() => ({}));
   let p;
   try {
     const r = await fetch("https://www.googleapis.com/oauth2/v3/certs", { cf: { cacheTtl: 3600, cacheEverything: true } });
@@ -79,23 +79,21 @@ async function handleGoogle(env, request) {
   let uid = link?.uid, plan = { do: "login" };
   if (!link) {
     uid = n ? await uidOf() : null;
-    const row = uid && (await env.DB.prepare("SELECT pinhash FROM players WHERE uid=?").bind(uid).first());
-    plan = linkPlan({ linkedUid: null, nick: n, existing: !!row,
-      pinOk: !!row?.pinhash && row.pinhash === (await sha256(`${pin}:${uid}`)),
-      uidLinked: !!row && !!(await env.DB.prepare("SELECT 1 FROM google_links WHERE uid=?").bind(uid).first()) });
-    if (plan.need === "nick") return json({ need: "nick" });
+    const existing = !!uid && !!(await env.DB.prepare("SELECT 1 FROM players WHERE uid=?").bind(uid).first());
+    plan = linkPlan({ linkedUid: null, nick: n, existing });
+    if (plan.need === "nick" && !plan.status) return json({ need: "nick" });
     if (plan.status) return json({ error: plan.error, need: plan.need }, plan.status);
-    if (plan.do === "create") await env.DB.batch([ // 구글로 만든 계정은 PIN 없음
+    await env.DB.batch([ // players.pinhash 열은 예전 스키마의 흔적(NOT NULL)이라 빈칸으로 둔다
       env.DB.prepare("INSERT INTO players (uid,nick,pinhash,t) VALUES (?,?,?,?)").bind(uid, n, "", t),
       env.DB.prepare("INSERT OR IGNORE INTO docs (path,col,body,t) VALUES (?,?,?,?)").bind("players/" + uid, "players", JSON.stringify({ name: n, t }), t),
+      env.DB.prepare("INSERT INTO google_links (sub,uid,t) VALUES (?,?,?)").bind(sub, uid, t),
     ]);
-    await env.DB.prepare("INSERT INTO google_links (sub,uid,t) VALUES (?,?,?)").bind(sub, uid, t).run();
   }
   const isNew = plan.do === "create";
   const token = [...crypto.getRandomValues(new Uint8Array(32))].map((x) => x.toString(16).padStart(2, "0")).join("");
   await env.DB.prepare("INSERT INTO sessions (h,uid,sub,t) VALUES (?,?,?,?)").bind(await sha256(token), uid, sub, t).run();
   const name = (await env.DB.prepare("SELECT nick FROM players WHERE uid=?").bind(uid).first())?.nick || "";
-  return json({ uid, name, token, isNew, linked: plan.do === "link" });
+  return json({ uid, name, token, isNew });
 }
 
 /* ---------- 사진: dataURL → R2 ---------- */
@@ -239,7 +237,6 @@ export default {
       if (!obj) return new Response("not found", { status: 404, headers: CORS });
       return new Response(obj.body, { headers: { "Content-Type": obj.httpMetadata?.contentType || "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ...CORS } });
     }
-    if (url.pathname === "/auth" && request.method === "POST") return json({ error: "이제 구글 계정으로만 입장해요. 예전 닉네임·PIN은 구글 입장 때 넣으면 기록이 이어져요" }, 410);
     if (url.pathname === "/avatar/gen" && request.method === "POST") return handleAvatar(env, request);
     if (url.pathname === "/auth/google" && request.method === "POST") return handleGoogle(env, request);
     if (url.pathname === "/avatar/quota") { const who = await whoami(env, request); return who ? json(await genQuota(env, who)) : json({ error: "입장 필요" }, 401); }
@@ -260,6 +257,6 @@ export default {
       try { return json(await placeInfo(pid), 200, { "Cache-Control": "public, max-age=3600" }); }
       catch (e) { return json({ error: String(e) }, 502); }
     }
-    return json({ ok: true, routes: ["/api/places", "/api/place", "/auth", "/db/*", "/photo/*"] });
+    return json({ ok: true, routes: ["/api/places", "/api/place", "/auth/google", "/db/*", "/photo/*"] });
   },
 };

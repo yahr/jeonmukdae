@@ -329,8 +329,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 <dialog id="authdlg"><form class="detail" id="auth-form">
   <div><span class="tape">INSERT COIN</span><h2 style="margin-top:8px">전국먹자대회 입장</h2><div class="meta sub">구글 계정으로 입장해요. 다른 기기에서도 내 캐릭터·기록이 따라와요.</div></div>
   <label><span class="px sub">닉네임 (1~12자)</span><input type="text" id="auth-nick" maxlength="12" autocomplete="username"></label>
-  <label><span class="px sub">PIN (예전 닉네임을 연결할 때만 · 처음이면 비워 둬요)</span><input type="password" id="auth-pin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="current-password"></label>
-  <div id="auth-gbox" hidden><div id="auth-g" style="min-height:44px"></div><div class="sub" style="margin-top:6px">처음이면 쓸 닉네임만 넣고 구글 버튼을 눌러요. 예전 닉네임이 있으면 그 PIN까지 넣어야 기록이 이어져요.</div></div>
+  <div id="auth-gbox" hidden><div id="auth-g" style="min-height:44px"></div><div class="sub" style="margin-top:6px">처음이면 쓸 닉네임을 넣고 구글 버튼을 눌러요. 이미 구글로 들어온 적이 있으면 버튼만 누르면 돼요.</div></div>
   <div class="sub" id="auth-msg" aria-live="polite"></div>
   <div class="inline"><button class="btn" type="submit" id="auth-go" hidden>▶ 입장</button><button class="btn ghost" type="button" id="auth-skip">구경만 할래요</button></div>
 </form></dialog>
@@ -988,7 +987,8 @@ $('#char-edit').addEventListener('click',openDesigner);
    ponytail: 폴링이라 "실시간"은 8초 지연. 더 빠르게 하려면 Durable Object/WebSocket. ---------- */
 const DBBASE='https://jeonmukdae-api.jeonmukdae.workers.dev';
 const AUTHKEY='sundae-quest-auth';
-const loadAuth=()=>{try{return JSON.parse(localStorage.getItem(AUTHKEY)||'null')}catch{return null}};
+/* 구글 세션 토큰이 없는 예전 값(닉네임·PIN)은 읽을 때 지운다. 키 이름은 그대로 */
+const loadAuth=()=>{try{const a=JSON.parse(localStorage.getItem(AUTHKEY)||'null');if(a&&!a.token){localStorage.removeItem(AUTHKEY);return null}return a}catch{return null}};
 let authInfo=loadAuth();
 function remoteDB(base){
   const data={},listeners=new Set(),cols=new Set(),loaded=new Set();let lastT=0,syncing=false;
@@ -1054,14 +1054,13 @@ async function googleSignIn(credential,extra={}){
   if(j.token){authInfo={uid:j.uid,name:j.name,token:j.token,g:1};try{localStorage.setItem(AUTHKEY,JSON.stringify(authInfo))}catch{}}
   return j;
 }
-/* ---------- 입장: 구글로만(2026-11-24). 닉네임+PIN은 예전 계정을 구글에 연결할 때만 쓴다 ---------- */
-function openAuth(cred=null,legacy=null){
+/* ---------- 입장: 구글로만(2026-11-24, PIN 없음) ---------- */
+function openAuth(cred=null){
   return new Promise(resolve=>{
-    const d=$('#authdlg'),msg=$('#auth-msg'),pinEl=$('#auth-pin');
-    const done=j=>{d.close();toast(j.linked?`${j.name} 기록을 구글 계정에 연결했어요`:j.isNew?`${j.name} 첫 입장! 캐릭터를 꾸며요`:`${j.name} 다시 왔군`);resolve(true)};
-    const setCred=c=>{cred=c;$('#auth-go').hidden=!c;if(c)msg.textContent='구글 계정 확인됐어요. 처음이면 쓸 닉네임을, 예전 닉네임이 있으면 그 닉네임·PIN을 넣고 입장을 눌러요'};
-    const vals=()=>{const nick=$('#auth-nick').value.trim(),pin=pinEl.value.trim();return nick?{nick,pin}:{}};
-    if(legacy){$('#auth-nick').value=legacy.nick||'';pinEl.value=legacy.pin||'';msg.textContent='이제 구글로만 입장해요. 예전 닉네임·PIN을 넣어 뒀으니 구글 버튼만 누르면 기록이 그대로 이어져요'}
+    const d=$('#authdlg'),msg=$('#auth-msg');
+    const done=j=>{d.close();toast(j.isNew?`${j.name} 첫 입장! 캐릭터를 꾸며요`:`${j.name} 다시 왔군`);resolve(true)};
+    const setCred=c=>{cred=c;$('#auth-go').hidden=!c;if(c)msg.textContent='구글 계정 확인됐어요. 쓸 닉네임을 넣고 입장을 눌러요'};
+    const vals=()=>{const nick=$('#auth-nick').value.trim();return nick?{nick}:{}};
     googleButton($('#auth-g'),async c=>{msg.textContent='구글 계정 확인 중…';
       try{const j=await googleSignIn(c,vals());if(j.token)return done(j);setCred(c);$('#auth-nick').focus()}
       catch(err){setCred(c);msg.textContent=err.message}}).then(ok=>{$('#auth-gbox').hidden=!ok;if(!ok)msg.textContent='구글 로그인을 불러오지 못했어요. 잠시 후 새로고침해 주세요'});
@@ -1096,12 +1095,11 @@ async function boot(){
   [spriteLib,gameLib,officialData]=await Promise.all([import('./assets/sprite.js').catch(()=>null),import('./assets/game-core.js').catch(()=>null),fetch('data/dojos.json').then(r=>r.ok?r.json():[]).catch(()=>[])]);
   db=remoteDB(DBBASE); // 읽기는 입장 없이도 된다: 손님도 시즌 카드 격파 수를 바로 본다
   renderSelect();renderChar(); // 서버 응답 전에도 기본 캐릭터부터
-  let legacy=null;if(authInfo&&!authInfo.token){legacy=authInfo;authInfo=null} // 예전 닉네임·PIN 입장: 구글 연결 전까진 구경 모드, 저장값은 구글 입장이 덮어쓴다
-  if(!authInfo)await openAuth(null,legacy);
+  if(!authInfo)await openAuth();
   user=remoteUser(db);uid=await user.id();
   if(uid){const pd=(await db.doc('players/'+uid).get()).data();if(pd){me={...me,...pd,avatar:{...me.avatar,...(pd.avatar||{})}}}if(!me.name)me.name=authInfo.name}
   $('#hud-me').textContent=uid?(me.name||authInfo.name):'GUEST';$('#hud-out').textContent=uid?'나가기':'입장';renderChar();
-  $('#hud-out').onclick=async()=>{if(uid){try{localStorage.removeItem(AUTHKEY)}catch{}location.reload()}else{if(await openAuth(null,legacy))location.reload()}};
+  $('#hud-out').onclick=async()=>{if(uid){try{localStorage.removeItem(AUTHKEY)}catch{}location.reload()}else{if(await openAuth())location.reload()}};
   $('#login-note').textContent=uid?'기록은 서버에 저장돼요. 다른 기기에서도 같은 구글 계정으로 로그인하면 그대로 이어져요.':'구경만 하는 중. 기록하려면 오른쪽 위 "입장"을 눌러요.';
   renderSelect();
   menusUnsub=db.collection('menus').onSnapshot(s=>{customs=s.docs.map(d=>({id:d.id,...d.data()}));scheduleXP()});

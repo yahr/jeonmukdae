@@ -41,19 +41,17 @@ export function genLimit({ sub, uid, day, rows, all, paid }) {
   return { day, paid, left, used, limit: paid ? null : FREE_TOTAL, dayFull: !paid && all >= PER_DAY, needGoogle: false };
 }
 
-// 2026-11-24 사용자 결정: 계정은 구글 로그인으로만. 닉네임·PIN(Bearer uid:pin)은 더 이상 인증이 아니다.
+// 2026-11-24 사용자 결정: 계정은 구글 로그인으로만, PIN은 없앴다. 인증은 구글 세션(Bearer s:token)뿐이다.
 export function parseBearer(h) {
   const m = /^Bearer\s+s:([0-9a-f]{64})$/.exec(h || "");
   return m ? { token: m[1] } : null;
 }
 
-// 구글 입장 판단. existing: 그 닉네임 계정이 있나, pinOk: 넣은 PIN이 맞나, uidLinked: 그 계정이 이미 다른 구글에 연결됐나
-export function linkPlan({ linkedUid, nick, existing, pinOk, uidLinked }) {
+// 구글 입장 판단. existing: 그 닉네임을 이미 누가 쓰나
+export function linkPlan({ linkedUid, nick, existing }) {
   if (linkedUid) return { do: "login", uid: linkedUid };
   if (!nick) return { need: "nick" };
   if (nick.length > 12) return { status: 400, error: "닉네임은 1~12자" };
-  if (!existing) return { do: "create" };
-  if (!pinOk) return { status: 403, need: "pin", error: "이미 있는 닉네임이에요. 내 예전 닉네임이면 그 PIN을 같이 넣어 연결해요" };
-  if (uidLinked) return { status: 409, error: "이 닉네임은 이미 다른 구글 계정에 연결돼 있어요" };
-  return { do: "link" };
+  if (existing) return { status: 409, need: "nick", error: "이미 쓰는 닉네임이에요. 다른 닉네임을 넣어 주세요" };
+  return { do: "create" };
 }
