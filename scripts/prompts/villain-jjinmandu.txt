@@ -1,13 +1,13 @@
 Pixel art character sprite sheet for a retro 2D arcade fighting game. A 2x2 grid of four equal square cells, one pose per cell, the SAME character in every cell (identical design, colors, proportions), each pose centered in its cell with empty margin, nothing crossing into another cell.
 
-Art style: late-1990s 2D arcade sprite quality. Crisp hand-placed pixels, 1-pixel dark navy outline, 4 to 5 shading steps per color, soft highlights. Three-quarter view facing left, toward the left side of the frame, in every cell (the player stands on the left, this villain stands on the right facing them). Each figure about 100 pixels tall in pixel scale.
+Art style: late-1990s 2D arcade sprite quality. Crisp hand-placed pixels, 1-pixel dark navy outline, 4 to 5 shading steps per color, soft highlights. Direction (very important): in every cell the villain is drawn in a three-quarter view turned toward the LEFT side of the frame, because the player stands on the left and this villain stands on the right facing them. Its eyes look to the left, and every gesture (beckoning hand, pumped fist, thumbs up) is held out toward the left edge of its cell. Nothing faces or points to the right. Concretely: the whole body is rotated so its face is shifted toward the left half of the dumpling, the gesturing hand is on the viewer's LEFT side of the body, and the other hand rests on the hip on the viewer's right side. Each figure about 100 pixels tall in pixel scale.
 
 Character: a lovable boss "villain" who is a plump steamed Korean dumpling (jjinmandu) come to life. Creamy white-yellow dough body with pleats gathered on top, a big round face on the front, tiny pink devil horns, rosy pink cheeks, short little arms and stubby feet, a wisp of white steam above its head. Cheeky and shameless but kind; it looks delicious and warm, never scary, never mean.
 
 Cell 1 (top-left): idle, arms on hips, cheeky confident grin, eyebrows arched up playfully.
-Cell 2 (top-right): taunting, beckoning with one hand "come at me", playful wink, tongue slightly out.
-Cell 3 (bottom-left): special move power-up, a gleeful triumphant battle cry with a big open smiling mouth, sparkling star-shaped eyes, eyebrows raised high, one fist pumped up, golden glowing steam aura and sparkles around it; thrilled and proud like a show-off, absolutely not angry.
-Cell 4 (bottom-right): victory, warm satisfied gentle smile with eyes closed, one thumb up, small pink hearts floating around.
+Cell 2 (top-right): taunting, beckoning toward the left with one hand "come at me", playful wink, tongue slightly out.
+Cell 3 (bottom-left): special move power-up, a gleeful triumphant battle cry with a big open smiling mouth, sparkling star-shaped eyes, eyebrows raised high, one fist pumped up on the viewer's left side of the body, golden glowing steam aura and sparkles around it; thrilled and proud like a show-off, absolutely not angry.
+Cell 4 (bottom-right): victory, warm satisfied gentle smile with eyes closed, one thumbs-up hand held out on the viewer's left side of the body, small pink hearts floating around.
 
 Facial rule for every cell: eyebrows are always raised or arched, never furrowed or slanted down toward the nose; no angry, mean, scary or sad expression anywhere.
 Background: one flat solid pure magenta color #FF00FF filling every cell, no floor, no shadows, no gradient, no grid lines.

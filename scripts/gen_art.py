@@ -62,8 +62,8 @@ def save_sheet(name, im, manifest):
     for k in where[:-1]:
         node = node.setdefault(k, {})
     node[where[-1]] = files
-    if name == "villain-sheet":  # 프롬프트가 왼쪽을 보게 한다. 그림이 오른쪽을 보면 manifest 에서 "right" 로 고치면 화면이 뒤집는다
-        node["facing"] = "left"
+    if name == "villain-sheet":  # 프롬프트는 왼쪽을 요구하지만 모델이 손짓을 오른쪽에 그리는 일이 많다(2026-11-24 찐만두 2회 실패).
+        node["facing"] = "left"     # 저장한 뒤 그림을 눈으로 보고, 오른쪽을 보면 manifest 를 "right" 로 고친다(화면이 뒤집음)
 
 
 def key():
@@ -96,8 +96,20 @@ def pick_model(k, want=None):
     return sorted(names, key=lambda n: ("preview" in n, "pro" not in n, "lite" in n, n))[0]
 
 
-def generate(k, model, prompt, ratio):
-    body = {"contents": [{"parts": [{"text": prompt}]}],
+def ref_part(path):
+    """레퍼런스 그림(우리가 만든 그림만): 마젠타 바탕에 4배 확대해 넣는다. 외부 매장 사진은 넣지 않는다"""
+    im = Image.open(path).convert("RGBA")
+    bg = Image.new("RGBA", im.size, (255, 0, 255, 255)); bg.alpha_composite(im)
+    bg = bg.resize((im.width * 4, im.height * 4), Image.NEAREST).convert("RGB")
+    buf = io.BytesIO(); bg.save(buf, "PNG")
+    return {"inlineData": {"mimeType": "image/png", "data": base64.b64encode(buf.getvalue()).decode()}}
+
+
+def generate(k, model, prompt, ratio, ref=None):
+    parts = [{"text": prompt + ("\n\nThe attached image is this same villain. Keep its exact design, colors and proportions, but turn it as described." if ref else "")}]
+    if ref:
+        parts.append(ref_part(ref))
+    body = {"contents": [{"parts": parts}],
             "generationConfig": {"responseModalities": ["IMAGE"], "imageConfig": {"aspectRatio": ratio}}}
     j = call(f"/models/{model}:generateContent", k, body)
     for c in j.get("candidates", []):
@@ -129,8 +141,9 @@ def main():
     mf = OUT / "manifest.json"
     manifest = json.loads(mf.read_text()) if mf.exists() else {}
     src = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--from=")), None)
+    ref = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--ref=")), None)  # 레퍼런스(우리 그림): --ref=assets/battle/…webp
     for name in [a for a in args if a in SHEETS]:
-        im = Image.open(src) if src else generate(k, model, SHEETS[name][2](), "1:1")
+        im = Image.open(src) if src else generate(k, model, SHEETS[name][2](), "1:1", ref)
         save_sheet(name, im, manifest)
     for name in [a for a in args if a not in SHEETS] if args else ART:
         div, desc, ratio, width = ART[name]
