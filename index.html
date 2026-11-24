@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>전국먹자대회</title>
+<!--SEO-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Do+Hyeon&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -151,6 +152,13 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:15px}
 .legend span i{display:inline-block;width:12px;height:12px;margin-right:5px;border:2px solid #000;vertical-align:-1px}
 @media (max-width:560px){#map{height:300px}}
+/* 공식 도장 */
+.offi{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.offi li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel2);border:3px solid var(--fg);padding:10px 12px}
+.offi a{color:var(--fg);text-decoration:none;display:grid;min-width:0}.offi a:hover b{color:var(--y)}
+.offi b{font-size:20px;font-weight:400}.offi small{color:var(--dim);font-size:14px}
+.seo-links{list-style:none;padding:0;margin:0;display:grid;gap:6px}.seo-links a{color:var(--c)}
+@media (max-width:560px){.offi li{grid-template-columns:1fr}}
 /* 시즌 배너 */
 .season{position:relative;overflow:hidden;background:#3a0e24;border:4px solid var(--m);box-shadow:8px 8px 0 var(--shadow);padding:18px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
 .season>:not(.stripes){position:relative;z-index:1}
@@ -223,6 +231,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
       </form>
       <div class="sub" id="login-note"></div>
     </div>
+    <!--DOJO-LINKS-->
   </section>
 
   <!-- 도장 -->
@@ -230,6 +239,11 @@ footer{color:var(--dim);font-size:14px;text-align:center}
     <div class="hud">
       <button class="btn ghost" id="back" type="button">◀ 메뉴 선택</button>
       <div class="px"><span id="stat-spots">0</span> 격파 · <span id="stat-players">0</span> 플레이어 · <span id="stat-scores">0</span> 평가 · <span id="stat-lvl" style="color:var(--y)"></span></div>
+    </div>
+
+    <div class="panel stack" id="official-wrap" hidden>
+      <div class="hud"><h2>OFFICIAL DOJOS</h2><span class="px sub">운영자가 연 공식 도장</span></div>
+      <ul class="offi" id="official"></ul>
     </div>
 
     <div class="panel stack" id="near-wrap">
@@ -313,11 +327,13 @@ const PRESETS=[
   {id:'donkatsu',name:'돈까스',e:'🍖',axes:['튀김옷','두께','소스','밥샐러드','가성비','분위기']},
   {id:'jjajangmyeon',name:'짜장면',e:'🥡',axes:['춘장','면발','재료','탕수육','가성비','분위기']},
   {id:'pyeongyang',name:'평양냉면',e:'🥢',axes:['육수','메밀면','고명','온도','가성비','노포감']},
+  {id:'jjinmandu',name:'찐만두',e:'🥟',axes:['만두소','피','양','가격','분위기','포장']}, // data/divisions.json 축 이름과 같게
 ];
 /* 시즌: 한 달에 메뉴 하나. 여기만 고치면 시즌이 바뀐다. 날짜는 KST 기준 포함 범위 */
 const SEASONS=[
   {n:1,menu:'sundaeguk',from:'2026-10-01',to:'2026-10-31'},
   {n:2,menu:'pyeongyang',from:'2026-11-01',to:'2026-11-30'},
+  {n:3,menu:'jjinmandu',from:'2026-12-01',to:'2026-12-31'},
 ];
 const today=()=>new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
 const curSeason=()=>SEASONS.find(s=>today()>=s.from&&today()<=s.to)||null;
@@ -390,7 +406,18 @@ async function enter(id,name){
   $('#s-axes').innerHTML=axisInputs('s');
   $('#select').hidden=true;$('#dojo').hidden=false;
   spots=[];scores=[];missions=[];cleared=[];prevRank={};
-  subscribe();render();
+  subscribe();render();renderOfficial(id);
+}
+/* 공식 도장: data/dojos.json(빌드 때 정적 페이지도 같이 만들어짐). 고르면 격파 등록 폼에 채움 */
+let officialData=null;
+async function renderOfficial(id){
+  const wrap=$('#official-wrap');wrap.hidden=true;
+  try{officialData??=await fetch('data/dojos.json').then(r=>r.ok?r.json():[])}catch{officialData=[]}
+  const list=(officialData||[]).filter(d=>d.division===id).sort((a,b)=>a.order-b.order);if(!list.length||menu?.id!==id)return;
+  $('#official').innerHTML=list.map((d,i)=>`<li><a href="dojo/${esc(d.slug)}/"><b>${d.order}호 ${esc([d.name,d.branch].filter(Boolean).join(' '))}</b><small>${esc(d.address)}</small></a><button class="btn sec" type="button" data-off="${i}">⚔ 격파 등록</button></li>`).join('');
+  $('#official').onclick=e=>{const b=e.target.closest('[data-off]');if(!b)return;const d=list[+b.dataset.off];
+    pickPlace({id:d.kakaoId,place_name:[d.name,d.branch].filter(Boolean).join(' '),place_url:d.maps?.kakao||'',x:d.geo.lng,y:d.geo.lat,road_address_name:d.address,address_name:d.jibun||d.address})};
+  wrap.hidden=false;
 }
 
 function subscribe(){

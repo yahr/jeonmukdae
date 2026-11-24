@@ -1,0 +1,14 @@
+{
+  "name": "jeonmukdae",
+  "private": true,
+  "type": "module",
+  "description": "전국먹자대회(전먹대) 정적 빌드",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test scripts/",
+    "og": "python3 scripts/og.py",
+    "add-dojo": "node scripts/add-dojo.mjs",
+    "serve": "python3 server.py 8791"
+  }
+}

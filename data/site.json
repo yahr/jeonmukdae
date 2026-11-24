@@ -1,0 +1,10 @@
+{
+  "name": "전국먹자대회",
+  "shortName": "전먹대",
+  "baseUrl": "https://yahr.github.io/jeonmukdae",
+  "description": "매달 한 부문씩 전국 가게를 도장깨기하는 레트로 게임형 맛집 기록. 가게는 6각 능력치로 평가하고, 도발 미션은 투표로 정해요.",
+  "locale": "ko_KR",
+  "ogImage": "assets/og/site.png",
+  "verification": { "google": "", "naver": "" },
+  "author": "전먹대 운영자"
+}

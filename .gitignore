@@ -3,3 +3,5 @@ __pycache__/
 .DS_Store
 worker/node_modules/
 worker/.wrangler/
+.agent/captures/
+_site/
