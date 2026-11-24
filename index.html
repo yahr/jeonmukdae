@@ -346,8 +346,8 @@ const PRESETS=[
 ];
 /* 시즌: 한 달에 메뉴 하나. 여기만 고치면 시즌이 바뀐다. 날짜는 KST 기준 포함 범위 */
 const SEASONS=[ // 여러 시즌이 동시에 진행된다(2026-11-24 사용자 결정). 날짜는 KST 포함 범위
-  {n:1,menu:'sundaeguk',from:'2026-10-01',to:'2026-12-31'},
-  {n:2,menu:'jjinmandu',from:'2026-11-24',to:'2026-12-31'},
+  {n:1,menu:'sundaeguk',from:'2026-11-01',to:'2026-11-30'}, // 한 달 기준. 끝나면 날짜로 지난 시즌. 10월 순대국 기록은 season 필드를 지워 시즌에서 뺐다(D1, 2026-11-24)
+  {n:2,menu:'jjinmandu',from:'2026-11-21',to:'2026-12-20'},
 ];
 const today=()=>new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
 const seasonOf=id=>SEASONS.find(s=>s.menu===id&&today()>=s.from&&today()<=s.to)||null; // 그 부문의 진행 중 시즌
