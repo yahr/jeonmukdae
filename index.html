@@ -157,7 +157,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .offi .srow{all:unset;cursor:pointer;display:grid;gap:2px;min-width:0;color:var(--fg)}.offi .srow:focus-visible{outline:3px dashed var(--g);outline-offset:3px}
 .vs-chip{justify-self:start;font-size:14px;background:var(--y);color:#000;border:2px solid #000;padding:1px 6px;margin-top:4px}.pl .vs-chip{display:inline-block;margin-top:4px}
 .seasons{display:grid;gap:12px}.scard{display:grid;gap:6px;background:var(--panel2);border:3px solid var(--y);box-shadow:5px 5px 0 var(--shadow);padding:12px 14px}
-.scard .snm{font-size:clamp(24px,7vw,34px);color:var(--y);word-break:keep-all}.scard .meta{color:var(--dim);font-size:15px;word-break:keep-all}.scard .meta b{white-space:nowrap}.scard .btn{justify-self:start}.scard.past{border-color:var(--dim)}.scard.past .snm{color:var(--fg);font-size:22px}
+.scard .snm{font-size:clamp(24px,7vw,34px);color:var(--y);word-break:keep-all}.scard .meta{color:var(--dim);font-size:15px;word-break:keep-all}.scard .meta .nw{white-space:nowrap}.scard .btn{justify-self:start}.scard.past{border-color:var(--dim)}.scard.past .snm{color:var(--fg);font-size:22px}
 .offi li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel2);border:3px solid var(--fg);padding:10px 12px}
 .offi a{color:var(--fg);text-decoration:none;display:grid;min-width:0}.offi a:hover b{color:var(--y)}
 .offi b{font-size:20px;font-weight:400}.offi small{color:var(--dim);font-size:14px}.offi .weap,.villains .weap{color:var(--m);word-break:keep-all}
@@ -384,7 +384,7 @@ function renderSelect(){
   if(!gameLib)return;
   const P=id=>PRESETS.find(p=>p.id===id)||{name:id,e:'🍽️'},c=gameLib.seasonCards(SEASONS,today()),off=id=>(officialData||[]).filter(d=>d.division===id).length;
   const card=(s,past)=>`<div class="scard${past?' past':''}"><span class="tape">S${s.n} · ${past?'종료':'진행 중'}</span><div class="snm">${P(s.menu).e} ${esc(P(s.menu).name)} 부문</div>
-    <div class="meta">${past?`${s.from} ~ ${s.to}`:`종료까지 <b class="px" style="color:var(--y)">D-${dday(s)}</b>`} · 공식 도장 ${off(s.menu)}곳 · 격파 <b data-cnt="${s.menu}">…</b>${past?` · 최강 빌런 <b data-top="${s.menu}">…</b>`:''}</div>
+    <div class="meta">${past?`${s.from} ~ ${s.to}`:`종료까지 <b class="px" style="color:var(--y)">D-${dday(s)}</b>`} · 공식 도장 ${off(s.menu)}곳 · <span class="nw">격파 <b data-cnt="${s.menu}">…</b></span>${past?` · <span class="nw">최강 빌런 <b data-top="${s.menu}">…</b></span>`:''}</div>
     <button class="btn${past?' ghost':''}" type="button" data-id="${s.menu}">${past?'결과 보기 · 다시 도전':'▶ 시즌 입장'}</button></div>`;
   $('#seasons-now').innerHTML=c.current.length?c.current.map(s=>card(s)).join(''):'<div class="empty">지금 진행 중인 시즌이 없어요</div>';
   $('#past-wrap').hidden=!c.past.length;$('#seasons-past').innerHTML=c.past.map(s=>card(s,true)).join('');
@@ -1063,8 +1063,8 @@ async function migrateLocal(){
 /* ---------- 부트 ---------- */
 async function boot(){
   [spriteLib,gameLib,officialData]=await Promise.all([import('./assets/sprite.js').catch(()=>null),import('./assets/game-core.js').catch(()=>null),fetch('data/dojos.json').then(r=>r.ok?r.json():[]).catch(()=>[])]);
+  db=remoteDB(DBBASE); // 읽기는 입장 없이도 된다: 손님도 시즌 카드 격파 수를 바로 본다
   renderSelect();renderChar(); // 서버 응답 전에도 기본 캐릭터부터
-  db=remoteDB(DBBASE);
   if(!authInfo)await openAuth();
   user=remoteUser(db);uid=await user.id();
   if(uid){const pd=(await db.doc('players/'+uid).get()).data();if(pd){me={...me,...pd,avatar:{...me.avatar,...(pd.avatar||{})}}}if(!me.name)me.name=authInfo.name}
