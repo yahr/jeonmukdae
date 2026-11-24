@@ -5,3 +5,5 @@ worker/node_modules/
 worker/.wrangler/
 .agent/captures/
 _site/
+.env
+.env.*

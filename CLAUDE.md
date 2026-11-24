@@ -22,10 +22,14 @@
 |---|---|
 | `index.html` | 게임 전체(한 파일). `<!--SEO-->`, `<!--DOJO-LINKS-->` 자리는 빌드가 채운다 |
 | `data/site.json` | 사이트 이름·주소(`baseUrl`)·검색 등록 인증값 |
-| `data/divisions.json` | 부문(찐만두 등): 시즌 기간, 소개, 6각 능력치 이름·산정 기준 |
+| `data/divisions.json` | 부문(찐만두 등): 시즌 기간, 소개, 6각 능력치 이름·산정 기준, 축별 필살기(`move: {name, fx}`), 패배 문구 `koLine` |
 | `data/dojos.json` | 운영자가 여는 공식 도장. 모르는 값은 `null` → 화면에 "확인 중" |
 | `content/dojo/<slug>.md` | 도장 후기(운영자가 직접 사 먹고 씀). `draft: true`면 안 나감 |
 | `content/guide/<slug>.md` | 큐레이션 글. 머리말 `title`, `description`, `date`, `dojos: slug1, slug2` |
+| `assets/battle-core.js` | 행복한 빌런 숫자 로직(게이지·콤보·KO·최강 빌런 집계). 테스트 `scripts/battle.test.mjs` |
+| `assets/battle.js` | 대결 화면 연출. 버튼 누를 때 `import()`로 불러온다(첫 로딩에 안 들어감) |
+| `assets/battle/` | Gemini로 만든 대결 그림(WebP)과 `manifest.json`(부문별). 없으면 이모지·CSS로 대신 |
+| `scripts/gen_art.py` | `npm run art [-- 이름]`: Gemini 이미지 모델로 대결 그림 생성. 모델은 목록에서 고름, 키는 `.env` |
 | `scripts/build.mjs` | 정적 빌드 → `_site/` (부문·도장·큐레이션 페이지, JSON-LD, sitemap, robots, llms.txt) |
 | `scripts/validate.mjs` | 데이터 검증. 오류가 있으면 빌드가 멈춘다 |
 | `scripts/og.py` | 공유 이미지 1200×630. 맥에서 돌리고 PNG를 커밋한다(Actions엔 한글 서체 없음) |
@@ -41,6 +45,7 @@ npm test                      # 데이터 검증 테스트
 npm run build                 # _site/ 만들기
 npm run add-dojo -- "검색어" --division jjinmandu --slug mandu-xxx
 npm run og                    # 공유 이미지 다시 만들기(도장을 추가했으면 필수)
+npm run art -- villain        # 대결 그림 다시 만들기(.env의 GEMINI_API_KEY). 표정이 행복한지 눈으로 검수
 cd worker && wrangler deploy  # API 고칠 때
 ```
 
@@ -52,6 +57,7 @@ cd worker && wrangler deploy  # API 고칠 때
 - **사진 원칙.** 카카오맵 등 외부 매장 사진은 내려받거나 이미지 생성 입력으로 쓰지 않는다. 운영자가 찍은 사진, 사장님이 준 사진만 쓴다.
 - **가게를 나쁘게 묘사하지 않는다.** 빌런 콘셉트도 칭찬의 다른 이름이다.
 - **공정성.** 한 부문에 같은 동네 가게를 3~5곳 함께 열고 산정 기준을 공개한다.
+- **행복 KO 기록 규칙.** KO 문서는 플레이어가 자기 것만 쓴다(Worker `canWrite`의 `by===uid`). 빌런 순위는 쓰러진 사람 수 → 평균 입 수 순. 대결 그림의 표정은 늘 행복해야 하고 찡그림·고통은 다시 만든다.
 - **브라우저 저장 키 `sundae-quest-*`는 바꾸지 않는다.** 바꾸면 사용자 로그인이 풀린다(옛 폴더 이름의 흔적).
 - 커밋은 `git -c user.name=yahr -c user.email=light.ez.glona@gmail.com commit …`(전역 git 사용자 미설정), 서명 줄 없이.
 
@@ -60,7 +66,7 @@ cd worker && wrangler deploy  # API 고칠 때
 요청서: Claude Docs "전먹대 사이트 수정 요청서 (Claude Code 전달용)", 기획안: "방이동 찐만두 로컬 큐레이션 기획안".
 
 - [x] 정적 생성, URL 구조, 도장 페이지, JSON-LD, 메타·OG, sitemap·robots·llms.txt, 자동 배포, 찐만두 부문 데이터
-- [ ] 3-8 행복한 빌런: 행복 게이지, 필살기 연출(히트 스톱·화면 흔들림·행복 +숫자), 행복 KO, 빌런 순위
+- [x] 3-8 행복한 빌런: 행복 게이지, 필살기 6종 연출(히트 스톱·흔들림·플래시·행복 +숫자·진동), 행복 KO·결과 화면, 최강 빌런 순위(`menus/<부문>/kos/<가게>__<uid>`, 가게마다 한 사람 1회), KO XP 15, 정적 도장 페이지 `?vs=<slug>` 진입 (2026-11-24)
 - [ ] 3-8-2 부문별 관능 어휘 조사(`npm run lexicon`, 네이버 검색 API 키 필요)
 - [ ] 3-8-3 플레이어 캐릭터 시트(행복한 표정 스프라이트, 배 불룩 KO 포즈)
 - [ ] 3-8-4 도트 매장 배경(업종별 타일셋)

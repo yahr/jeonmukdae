@@ -149,7 +149,7 @@ export function renderDojo(data, d) {
   <p class="tape">${esc(div.name)} 부문 · ${d.order}호 도장</p>
   <h1>${esc(name)}</h1>
   <p class="lead">${d.tagline ? esc(d.tagline) : TBD}</p>
-  <a class="btn big" href="${rel}#${esc(div.slug)}">⚔ 이 도장 격파하러 가기</a>
+  <a class="btn big" href="${rel}?vs=${esc(d.slug)}#${esc(div.slug)}">⚔ 격파하러 가기 · 행복 대결</a>
 
   <section><h2>한눈에 보기</h2>
     <dl class="info">${info.map(([k, v]) => `<div><dt>${k}</dt><dd>${val(v)}</dd></div>`).join("")}</dl>
@@ -157,12 +157,13 @@ export function renderDojo(data, d) {
 
   <section><h2>6각 능력치</h2>
     <div class="stats">${hexSvg(div.axes, d.stats)}
-      <ul class="axes">${div.axes.map((a) => `<li><b>${esc(a.name)}</b> ${d.stats ? `<span class="score">${d.stats[a.key]}/5</span>` : TBD}<br><small>${esc(a.desc)}</small></li>`).join("")}</ul>
+      <ul class="axes">${div.axes.map((a) => `<li><b>${esc(a.name)}</b> ${d.stats ? `<span class="score">${d.stats[a.key]}/5</span>` : TBD}<br><small>${esc(a.desc)}${a.move ? ` · 필살기 「${esc(a.move.name)}」` : ""}</small></li>`).join("")}</ul>
     </div>
     <p class="note">${esc(div.scoring)}</p>
+    <p class="note">이 가게는 도장을 지키는 <b>행복한 빌런</b>이에요. 능력치가 필살기가 되어, 맛있을수록 플레이어가 행복 게이지가 꽉 차 쓰러져요(행복 KO). 지는 게 최고의 찬사예요.</p>
   </section>
 
-  <section><h2>도발 미션과 격파 기록</h2>
+  <section><h2>도발 미션·격파·행복 KO 기록</h2>
     <div id="live" data-division="${esc(div.slug)}" data-kakao="${esc(d.kakaoId || "")}"><p class="note">실시간 격파 수와 도발 미션은 게임에서 기록돼요. <a href="${rel}#${esc(div.slug)}">게임에서 보기</a></p></div>
   </section>
 
@@ -189,11 +190,12 @@ export function renderDojo(data, d) {
 <script>
 // 있으면 좋은 것: 게임 서버에서 이 가게의 격파 수·도발 미션을 불러와 덧붙인다(없어도 본문은 그대로).
 (async()=>{const el=document.getElementById('live');const div=el.dataset.division,kid=el.dataset.kakao;if(!kid)return;
-try{const r=await fetch('${API}/db/sync?cols='+encodeURIComponent('menus/'+div+'/spots,menus/'+div+'/missions')+'&since=0');const j=await r.json();
+try{const r=await fetch('${API}/db/sync?cols='+encodeURIComponent('menus/'+div+'/spots,menus/'+div+'/missions,menus/'+div+'/kos')+'&since=0');const j=await r.json();
 const docs=(j.docs||[]).filter(x=>!x.deleted&&x.body);const spots=docs.filter(x=>x.col.endsWith('/spots')&&x.body.place&&String(x.body.place.id)===kid);
 const ms=docs.filter(x=>x.col.endsWith('/missions')&&x.body.place&&String(x.body.place.id)===kid);
+const kos=new Set(docs.filter(x=>x.col.endsWith('/kos')&&String(x.body.key)===kid).map(x=>x.body.by));
 const e=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-el.innerHTML='<p><b class="score">'+spots.length+'</b>번 격파됐어요.</p>'+(ms.length?'<ul>'+ms.map(m=>'<li>“'+e(m.body.title)+'” '+(m.body.done?'<span class="done">격파됨</span>':Object.values(m.body.votes||{}).filter(Boolean).length+'표')+'</li>').join('')+'</ul>':'<p class="note">아직 도발 미션이 없어요. 게임에서 첫 도발을 걸어 보세요.</p>')+'<p><a href="${rel}#'+div+'">게임에서 보기</a></p>';}catch(e){}})();
+el.innerHTML='<p><b class="score">'+spots.length+'</b>번 격파됐어요. 행복 KO 당한 플레이어 <b class="score">'+kos.size+'</b>명.</p>'+(ms.length?'<ul>'+ms.map(m=>'<li>“'+e(m.body.title)+'” '+(m.body.done?'<span class="done">격파됨</span>':Object.values(m.body.votes||{}).filter(Boolean).length+'표')+'</li>').join('')+'</ul>':'<p class="note">아직 도발 미션이 없어요. 게임에서 첫 도발을 걸어 보세요.</p>')+'<p><a href="${rel}#'+div+'">게임에서 보기</a></p>';}catch(e){}})();
 </script>`;
   return page({ site, path: `dojo/${d.slug}/`, rel, title: `${name} | ${div.name} 부문 도장 - ${site.name}`, description, image, type: "article", jsonld, body });
 }

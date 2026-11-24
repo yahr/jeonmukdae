@@ -159,6 +159,12 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .offi b{font-size:20px;font-weight:400}.offi small{color:var(--dim);font-size:14px}
 .seo-links{list-style:none;padding:0;margin:0;display:grid;gap:6px}.seo-links a{color:var(--c)}
 @media (max-width:560px){.offi li{grid-template-columns:1fr}}
+.offi .acts{display:flex;gap:8px;flex-wrap:wrap}.offi .acts .btn{flex:1 1 auto}
+.villains{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.villains li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel2);border:3px solid var(--fg);padding:8px 12px}
+.villains .n{font-family:var(--px);font-size:14px;color:var(--m)}.villains li:first-child .n{color:var(--y)}
+.villains b{font-size:20px;font-weight:400;overflow-wrap:anywhere}.villains small{display:block;color:var(--dim);font-size:14px}
+.villains .ko{font-family:var(--px);font-size:11px;color:var(--y);text-align:right;line-height:1.6}
 /* 시즌 배너 */
 .season{position:relative;overflow:hidden;background:#3a0e24;border:4px solid var(--m);box-shadow:8px 8px 0 var(--shadow);padding:18px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
 .season>:not(.stripes){position:relative;z-index:1}
@@ -268,6 +274,11 @@ footer{color:var(--dim);font-size:14px;text-align:center}
       <div class="legend" id="map-legend"></div>
       <div class="sub" style="font-size:14px">가게 검색으로 등록한 격파만 지도에 떠요. 같은 구에서 격파 수가 가장 많은 플레이어가 그 구의 주인이에요.</div>
     </div>
+    <div class="panel stack" id="villain-wrap" hidden>
+      <div class="hud"><h2>HAPPY VILLAINS</h2><span class="px sub">최강 빌런 · 플레이어를 가장 많이 행복 KO시킨 가게</span></div>
+      <ol class="villains" id="villains"></ol>
+      <div class="sub" style="font-size:14px">행복 대결에서 지면 그 가게가 1승. 한 사람은 가게마다 한 번만 세요. 지는 게 최고의 찬사예요.</div>
+    </div>
     <div class="panel stack">
       <div class="hud"><h2>RANKING</h2><button class="px sub" id="rank-scope" type="button" style="background:none;border:0;cursor:pointer;color:var(--dim)">6각 합계 · 실시간</button></div>
       <div id="ranking"></div>
@@ -349,7 +360,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slug=s=>{let h=7;for(const c of s)h=(h*31+c.codePointAt(0))>>>0;return 'c_'+h.toString(36)};
 
-let db=null,user=null,uid=null,menu=null,spots=[],scores=[],missions=[],cleared=[],customs=[],unsubs=[],menusUnsub=null,prevRank={};
+let db=null,user=null,uid=null,menu=null,spots=[],scores=[],missions=[],cleared=[],kos=[],customs=[],unsubs=[],menusUnsub=null,prevRank={};
 
 /* ---------- 6각 ---------- */
 function hex(vals,size,big){
@@ -405,7 +416,7 @@ async function enter(id,name){
   $('#hud-tag').textContent=sn?`전국먹자대회 · S${sn.n} ${monthTxt(sn)} · D-${dday(sn)} · #전먹대`:'전국먹자대회 · 상시 부문 · #전먹대';
   $('#s-axes').innerHTML=axisInputs('s');
   $('#select').hidden=true;$('#dojo').hidden=false;
-  spots=[];scores=[];missions=[];cleared=[];prevRank={};
+  spots=[];scores=[];missions=[];cleared=[];kos=[];prevRank={};
   subscribe();render();renderOfficial(id);
 }
 /* 공식 도장: data/dojos.json(빌드 때 정적 페이지도 같이 만들어짐). 고르면 격파 등록 폼에 채움 */
@@ -414,10 +425,44 @@ async function renderOfficial(id){
   const wrap=$('#official-wrap');wrap.hidden=true;
   try{officialData??=await fetch('data/dojos.json').then(r=>r.ok?r.json():[])}catch{officialData=[]}
   const list=(officialData||[]).filter(d=>d.division===id).sort((a,b)=>a.order-b.order);if(!list.length||menu?.id!==id)return;
-  $('#official').innerHTML=list.map((d,i)=>`<li><a href="dojo/${esc(d.slug)}/"><b>${d.order}호 ${esc([d.name,d.branch].filter(Boolean).join(' '))}</b><small>${esc(d.address)}</small></a><button class="btn sec" type="button" data-off="${i}">⚔ 격파 등록</button></li>`).join('');
-  $('#official').onclick=e=>{const b=e.target.closest('[data-off]');if(!b)return;const d=list[+b.dataset.off];
+  $('#official').innerHTML=list.map((d,i)=>`<li><a href="dojo/${esc(d.slug)}/"><b>${d.order}호 ${esc([d.name,d.branch].filter(Boolean).join(' '))}</b><small>${esc(d.address)}</small></a><div class="acts"><button class="btn" type="button" data-vs="${i}">😋 행복 대결</button><button class="btn sec" type="button" data-off="${i}">⚔ 격파 등록</button></div></li>`).join('');
+  $('#official').onclick=e=>{const v=e.target.closest('[data-vs]');if(v)return battleOfficial(list[+v.dataset.vs]);const b=e.target.closest('[data-off]');if(!b)return;const d=list[+b.dataset.off];
     pickPlace({id:d.kakaoId,place_name:[d.name,d.branch].filter(Boolean).join(' '),place_url:d.maps?.kakao||'',x:d.geo.lng,y:d.geo.lat,road_address_name:d.address,address_name:d.jibun||d.address})};
   wrap.hidden=false;
+  const vs=pendingVs&&list.find(d=>d.slug===pendingVs);if(vs){pendingVs=null;battleOfficial(vs)}
+}
+
+/* ---------- 행복한 빌런(요청서 3-8): 대결 화면은 버튼 누를 때 assets/battle.js를 불러온다 ---------- */
+let pendingVs=(()=>{try{const q=new URLSearchParams(location.search),v=q.get('vs');if(v){q.delete('vs');history.replaceState(null,'',location.pathname+(q.size?'?'+q:'')+location.hash)}return v&&/^[a-z0-9-]+$/.test(v)?v:null}catch{return null}})(); // 정적 도장 페이지 → ?vs=<slug>#<부문>
+let divData=null,coreMod=null;
+const playersFor=ids=>{const ss=scores.filter(x=>ids.has(x.spot)&&Array.isArray(x.s));return {n:ss.length,avg:[0,1,2,3,4,5].map(i=>ss.length?ss.reduce((a,x)=>a+(+x.s[i]||0),0)/ss.length:0)}};
+function battleOfficial(d){const ids=new Set(spots.filter(s=>d.kakaoId&&s.place?.id===d.kakaoId).map(s=>s.id));
+  startBattle({key:d.kakaoId||d.slug,slug:d.slug,name:[d.name,d.branch].filter(Boolean).join(' '),stats:d.stats,players:playersFor(ids)})}
+function battleSpot(sp){const off=(officialData||[]).find(d=>d.division===menu.id&&sp.place?.id&&d.kakaoId===sp.place.id);if(off)return battleOfficial(off);
+  const ids=new Set(spots.filter(s=>s.id===sp.id||(sp.place?.id&&s.place?.id===sp.place.id)).map(s=>s.id));
+  startBattle({key:sp.place?.id||sp.id,name:sp.name,stats:null,players:playersFor(ids)})}
+const villainPool=()=>{const sn=seasonOf(menu.id);return sn&&!allTime?kos.filter(k=>inSeason(k,sn)):kos};
+async function startBattle(t){
+  if(!menu)return;const m=menu;
+  try{
+    divData??=await fetch('data/divisions.json').then(r=>r.ok?r.json():[]).catch(()=>[]);
+    const div=divData.find(d=>d.slug===m.id),axes=div?div.axes:m.axes.map((name,i)=>({key:'a'+i,name}));
+    const [core,ui]=await Promise.all([coreMod??=import('./assets/battle-core.js'),import('./assets/battle.js')]);
+    const lvl=lvlOf(xp.total);
+    ui.openBattle({div:m.id,target:t,axes,emoji:m.e,koLine:div?.koLine||`오늘 나는 ${m.name}에게 졌다`,
+      stats:core.statsFor({stats:t.stats,axes,players:t.players}),avatar:h=>avatarSVG(me.avatar,lvl,130,h),
+      onKO:async({bites})=>{
+        if(!db||!uid||!authInfo)return {saved:false,note:'입장(닉네임·PIN)하면 이 KO가 빌런 순위에 올라가요'};
+        const ref=db.doc(`menus/${m.id}/kos/${t.key}__${uid}`),prev=(await ref.get()).data(),sn=seasonOf(m.id);
+        await ref.set({by:uid,key:t.key,name:t.name,...(t.slug?{slug:t.slug}:{}),bites:prev?.bites?Math.min(prev.bites,bites):bites,n:(prev?.n||0)+1,t:Date.now(),...(sn?{season:sn.n}:{})});
+        const r=core.villainRank(villainPool()),i=r.findIndex(v=>v.key===t.key);
+        return {saved:true,note:`이 빌런에게 쓰러진 플레이어 ${r[i]?.kos||1}명 · ${m.name} 부문 최강 빌런 ${i+1}위`}}});
+  }catch(e){console.warn(e);toast('대결 화면을 못 불러왔어요. 잠시 후 다시')}
+}
+function renderVillains(){
+  if(!kos.length){$('#villain-wrap').hidden=true;return}
+  (coreMod??=import('./assets/battle-core.js')).then(c=>{const r=c.villainRank(villainPool());$('#villain-wrap').hidden=!r.length;
+    $('#villains').innerHTML=r.slice(0,10).map((v,i)=>`<li><span class="n">${i+1}</span><div><b>${esc(v.name)}</b><small>평균 ${v.avgBites}입 만에 행복 KO${i===0?' · 👑 최강 빌런':''}</small></div><span class="ko">${v.kos}<br>KO</span></li>`).join('')}).catch(e=>console.warn(e));
 }
 
 function subscribe(){
@@ -428,6 +473,7 @@ function subscribe(){
   unsubs.push(db.collection(base+'/scores').onSnapshot(s=>{scores=s.docs.map(d=>d.data());render()},onErr));
   unsubs.push(db.collection(base+'/missions').where('done','==',false).onSnapshot(s=>{missions=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr));
   unsubs.push(db.collection(base+'/missions').where('done','==',true).onSnapshot(s=>{cleared=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr));
+  unsubs.push(db.collection(base+'/kos').onSnapshot(s=>{kos=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr));
 }
 
 /* ---------- 도장 렌더 ---------- */
@@ -495,7 +541,7 @@ function render(){
   const cl=(sn0?cleared.filter(m=>inSeason(m,sn0)):cleared).sort((a,b)=>(b.clearedAt||0)-(a.clearedAt||0)).slice(0,5);
   $('#cleared').innerHTML=cl.length?`<div class="px sub" style="margin:14px 0 6px">🏆 격파된 도발</div>`+cl.map(m=>`<div class="trophy" ${m.proof?`data-proof="${m.id}" role="button" tabindex="0"`:''}>${m.proof?`<img src="${m.proof}" alt="">`:`<div class="noproof">NO<br>PHOTO</div>`}<div class="meta"><span data-uid="${esc(m.clearedBy||'')}">…</span> ▶ <span data-uid="${esc(m.by)}">…</span>의 “${esc(m.title)}” 격파${m.proof?' · 인증샷 보기':''}</div></div>`).join(''):'';
 
-  renderPlaceSelect();resolveNames();scheduleXP();renderMap();
+  renderPlaceSelect();resolveNames();scheduleXP();renderMap();renderVillains();
 }
 async function resolveNames(){
   const els=[...document.querySelectorAll('[data-uid]')];if(!els.length)return;
@@ -597,7 +643,7 @@ function openDetail(sid){
   const sp=ranked().find(x=>x.id===sid)||spots.filter(s=>s.id===sid).map(s=>({...s,n:0,avg:[0,0,0,0,0,0],total:0,raters:[]}))[0]||{id:sid,name:'새 가게',region:'',n:0,avg:[0,0,0,0,0,0],total:0,raters:[]};
   const mine=sp.mine?.s;
   const userPhotos=[...(sp.photos||[]),...scores.filter(x=>x.spot===sid).flatMap(x=>x.photos||[])].filter((u,i,a)=>a.indexOf(u)===i);
-  $('#detail').innerHTML=`<div class="top"><div><span class="tape">STAGE DATA</span><h2 style="margin-top:8px">${esc(sp.name)}</h2><div class="meta sub">${esc(sp.region||'')} · 평가 ${sp.n}명 · 합계 <b style="color:var(--g)">${sp.total.toFixed(1)}</b>/30</div></div><button class="btn ghost" type="button" id="dlg-x">✕</button></div>
+  $('#detail').innerHTML=`<div class="top"><div><span class="tape">STAGE DATA</span><h2 style="margin-top:8px">${esc(sp.name)}</h2><div class="meta sub">${esc(sp.region||'')} · 평가 ${sp.n}명 · 합계 <b style="color:var(--g)">${sp.total.toFixed(1)}</b>/30</div><button class="btn" type="button" id="dlg-vs" style="margin-top:10px">😋 행복 대결</button></div><button class="btn ghost" type="button" id="dlg-x">✕</button></div>
     <div id="place-info"></div>
     ${userPhotos.length?`<div><div class="px sub" style="margin-bottom:6px">📷 플레이어 인증 음식 사진</div><div class="pgrid">${userPhotos.slice(0,6).map(u=>`<img src="${u}" alt="">`).join('')}</div></div>`:''}
     <div style="display:flex;justify-content:center">${hex(sp.avg,300,true)}</div>
@@ -605,6 +651,7 @@ function openDetail(sid){
     <form class="stack" id="rate-form"><div class="px sub">${mine?'내 평가 수정':'내 6각 평가 남기기'}</div><div class="axes">${axisInputs('r',mine)}</div>
       <div class="inline" style="align-items:center"><button class="btn sec" type="button" id="r-shoot">📸 음식 촬영 (0/2)</button><span class="sub">첨부 불가 · 촬영만</span></div><div class="thumbs" id="r-prev" hidden></div>
       <div><button class="btn" type="submit">${mine?'평가 덮어쓰기':'평가 저장'}</button></div></form>`;
+  $('#dlg-vs').onclick=()=>{$('#dlg').close();battleSpot(sp)};
   $('#dlg-x').onclick=()=>$('#dlg').close();const rShots=[...(sp.mine?.photos||[])];shootWidget($('#r-shoot'),$('#r-prev'),rShots,2,'평가 인증 음식 촬영');
   $('#rate-form').onsubmit=async e=>{e.preventDefault();if(!guard())return;
     try{const photos=[...rShots];const keep=[];
@@ -750,7 +797,7 @@ const ACCS={none:{n:'없음'},
   // 익선관: 검은 관 + 뒤로 선 날개 두 장, 금테
   ikseon:{n:'익선관',c:'#15132a',r:[[7,-1,10,1],[5,0,14,1],[4,1,16,6],[8,-5,2,1],[7,-4,3,3],[14,-5,2,1],[14,-4,3,3],[9,-1,1,1],[14,-1,1,1]],c2:'#c9a24a',r2:[[4,6,16,1],[8,-2,2,1],[14,-2,2,1],[7,-4,1,2],[16,-4,1,2]]}};
 const LEVELS=[{n:'견습 식객',xp:0,c:'#e8e8e8'},{n:'노란띠 먹보',xp:30,c:'#ffd23f'},{n:'파란띠 국밥러',xp:80,c:'#3b8bd9'},{n:'빨간띠 순대마스터',xp:160,c:'#d94f4f'},{n:'검은띠 국물장인',xp:280,c:'#1b1b2a'},{n:'먹신 👑',xp:450,c:'#ffd23f',god:true}];
-const XP_RULE={spot:10,score:3,taunt:5,clear:25,vote:1};
+const XP_RULE={spot:10,score:3,taunt:5,clear:25,vote:1,ko:15}; // ko: 행복 KO 패배(가게마다 1번)
 let me={name:'',avatar:{skin:0,hair:'short',hairc:0,acc:'none'},lvl:0},xp={total:0,n:{}};
 const lvlOf=t=>LEVELS.reduce((a,l,i)=>t>=l.xp?i:a,0);
 
@@ -771,7 +818,7 @@ const nearest=(hex,pal)=>{const v=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16))
 const avgHex=list=>{const v=list.filter(Boolean).map(h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)));if(!v.length)return null;const m=v.reduce((a,b)=>a.map((x,i)=>x+b[i]),[0,0,0]).map(x=>Math.round(x/v.length));return '#'+m.map(x=>x.toString(16).padStart(2,'0')).join('')};
 const randomAvatar=()=>({skin:Math.floor(Math.random()*SKINS.length),hair:Object.keys(HAIRS)[Math.floor(Math.random()*Object.keys(HAIRS).length)],hairc:Math.floor(Math.random()*HAIRC.length),acc:Object.keys(ACCS)[Math.floor(Math.random()*Object.keys(ACCS).length)]});
 const shade=(hex,k)=>'#'+[1,3,5].map(i=>Math.max(0,Math.min(255,Math.round(parseInt(hex.slice(i,i+2),16)*k))).toString(16).padStart(2,'0')).join('');
-function avatarSVG(av,lvl,size){
+function avatarSVG(av,lvl,size,happy){ // happy: 행복 KO 얼굴(감은 눈 웃음·발그레한 볼·벌린 입)
   const L=LEVELS[lvl]||LEVELS[0],skin=SKINS[av.skin]||SKINS[0],hc=HAIRC[av.hairc]||HAIRC[0],dark=shade(skin,.78),blush=shade(skin,.92);
   const R=(x,y,w,h,c)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
   const rs=(list,c)=>list.map(r=>R(...r,c)).join('');
@@ -823,6 +870,9 @@ function avatarSVG(av,lvl,size){
   // 장식
   // 장식·왕관은 사진 머리 위에 올라가야 하므로 별도 레이어(acc: 24격자, f2: 48격자 디테일)
   let acc='',f2='';const a=ACCS[av.acc];
+  if(happy){if(!photo)acc+=R(6,9,5,4,skin)+R(13,9,5,4,skin)+R(9,14,6,3,skin); // 원래 눈·눈꺼풀·입 덮고
+    acc+=R(6,11,1,1,ink)+R(7,10,3,1,ink)+R(10,11,1,1,ink)+R(13,11,1,1,ink)+R(14,10,3,1,ink)+R(17,11,1,1,ink) // ∩∩ 웃는 눈
+      +R(9,14,6,1,'#7a1f1f')+R(10,15,4,1,'#ff6b8b')+R(11,16,2,1,'#7a1f1f')+R(5,12,2,2,'#ff8fabcc')+R(17,12,2,2,'#ff8fabcc')} // ▽ 웃는 입·볼
   if(a?.r)acc+=rs(a.r,a.c);if(a?.r2)acc+=rs(a.r2,a.c2);if(a?.pocket)acc+=rs(a.pocket,shade(a.c,.75))+R(11,23,2,1,'#fff');
   if(a?.r?.length)f2+=rs(a.r.slice(0,1).map(([x,y,w])=>[x*2,y*2,w*2,1]),shade(a.c,1.25)); // 장식 윗면 하이라이트
   if(av.acc==='apron')f2+=R(17,41,1,15,shade(a.c,.8))+R(30,41,1,15,shade(a.c,.8))+R(20,50,8,1,shade(a.c,.6)); // 앞치마 박음질·주머니 입구
@@ -835,15 +885,16 @@ function renderChar(){
   $('#char-av').innerHTML=avatarSVG(me.avatar,i,76);$('#hud-av').innerHTML=avatarSVG(me.avatar,i,28);
   $('#char-lvl').textContent=L.n;$('#char-xp').textContent=`XP ${xp.total}${next?` / 다음 띠 ${next.xp}`:' · MAX'}`;
   $('#char-bar').style.width=(next?Math.min(100,(xp.total-L.xp)/(next.xp-L.xp)*100):100)+'%';$('#char-panel').classList.toggle('god',!!L.god);$('#stat-lvl').textContent=`${L.n} XP${xp.total}`;
-  const n=xp.n;$('#char-src').textContent=xp.total?`격파 ${n.spot||0} · 평가 ${n.score||0} · 도발 ${n.taunt||0} · 미션 격파 ${n.clear||0} · 투표 ${n.vote||0}`:'격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.';
+  const n=xp.n;$('#char-src').textContent=xp.total?`격파 ${n.spot||0} · 평가 ${n.score||0} · 도발 ${n.taunt||0} · 미션 격파 ${n.clear||0} · 행복 KO ${n.ko||0} · 투표 ${n.vote||0}`:'격파·평가·도발·미션 격파로 XP를 모아요. 먹신까지 6단계.';
 }
 let xpTimer=null;
 function scheduleXP(){clearTimeout(xpTimer);xpTimer=setTimeout(computeXP,250)}
 async function computeXP(){
   if(!db||!uid)return;
-  const ids=[...new Set([...PRESETS.map(p=>p.id),...customs.map(c=>c.id)])];const n={spot:0,score:0,taunt:0,clear:0,vote:0};
+  const ids=[...new Set([...PRESETS.map(p=>p.id),...customs.map(c=>c.id)])];const n={spot:0,score:0,taunt:0,clear:0,vote:0,ko:0};
   for(const id of ids){
-    const [sp,sc,ms]=await Promise.all(['spots','scores','missions'].map(c=>db.collection(`menus/${id}/${c}`).get()));
+    const [sp,sc,ms,ko]=await Promise.all(['spots','scores','missions','kos'].map(c=>db.collection(`menus/${id}/${c}`).get()));
+    n.ko+=ko.docs.filter(d=>d.data().by===uid).length;
     n.spot+=sp.docs.filter(d=>d.data().by===uid).length;n.score+=sc.docs.filter(d=>d.data().by===uid).length;
     ms.docs.forEach(d=>{const m=d.data();if(m.by===uid)n.taunt++;if(m.done&&m.clearedBy===uid)n.clear++;if((m.votes||{})[uid]&&m.by!==uid)n.vote++});
   }

@@ -1,0 +1,10 @@
+{
+  "jjinmandu": {
+    "villain": "jjinmandu-villain.webp",
+    "dumpling": "jjinmandu-dumpling.webp",
+    "steamer": "jjinmandu-steamer.webp",
+    "bag": "jjinmandu-bag.webp",
+    "ko": "jjinmandu-ko.webp"
+  },
+  "_model": "gemini-3-pro-image"
+}
