@@ -326,7 +326,8 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 <dialog id="dlg"><div class="detail" id="detail"></div></dialog>
 <dialog id="camdlg"><div class="detail" id="camui"></div></dialog>
 <dialog id="authdlg"><form class="detail" id="auth-form">
-  <div><span class="tape">INSERT COIN</span><h2 style="margin-top:8px">전국먹자대회 입장</h2><div class="meta sub">닉네임과 PIN만 있으면 돼요. 다른 기기에서 같은 걸 넣으면 내 캐릭터·기록이 따라와요.</div></div>
+  <div><span class="tape">INSERT COIN</span><h2 style="margin-top:8px">전국먹자대회 입장</h2><div class="meta sub">구글로 계속하면 다른 기기에서도 내 캐릭터·기록이 따라와요. 캐릭터 만들기는 구글 로그인이 필요해요.</div></div>
+  <div id="auth-gbox" hidden><div id="auth-g" style="min-height:44px"></div><div class="sub" style="margin-top:6px">예전 닉네임·PIN이 있으면 아래에 먼저 넣고 구글 버튼을 누르면 그 기록에 연결돼요.</div></div>
   <label><span class="px sub">닉네임 (1~12자)</span><input type="text" id="auth-nick" maxlength="12" required autocomplete="username"></label>
   <label><span class="px sub">PIN (숫자 4~8자리 · 잊으면 못 찾아요)</span><input type="password" id="auth-pin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" required autocomplete="current-password"></label>
   <div class="sub" id="auth-msg">처음이면 그 닉네임으로 새로 만들어져요.</div>
@@ -895,7 +896,7 @@ function avatarHTML(av,lvl,size,pose='idle'){
   const f=spriteOf()?.[pose];
   return f?`<span class="sprw"><img class="spr" src="${esc(f.src)}" width="${size}" height="${Math.round(size*f.h/f.w)}" alt="내 캐릭터" draggable="false">${beltBadge(lvl,size)}</span>`:avatarSVG(av,lvl,size,pose!=='idle');
 }
-const authHdr=()=>({Authorization:`Bearer ${authInfo.uid}:${authInfo.pin}`});
+const authHdr=()=>authInfo?{Authorization:authInfo.token?`Bearer s:${authInfo.token}`:`Bearer ${authInfo.uid}:${authInfo.pin}`}:{}; // 구글 세션 또는 닉네임·PIN
 async function genQuota(){try{const r=await fetch(DBBASE+'/avatar/quota',{headers:authHdr()});return r.ok?await r.json():null}catch{return null}}
 /* 사진 → 피부·머리색 추정(대체 SVG와 프롬프트 힌트용). 사진 자체는 저장하지 않는다 */
 const photoAvatar=url=>new Promise(ok=>{const img=new Image();img.onload=()=>{const av={...me.avatar};try{av.photo=photoToPixels(img);
@@ -944,7 +945,7 @@ function openDesigner(){
   $('#detail').innerHTML=`<div class="top"><div><span class="tape">MY CHARACTER</span><h2 style="margin-top:8px">내 캐릭터 만들기</h2></div><button class="btn ghost" type="button" id="dlg-x">✕</button></div>
     <div class="designer" id="dsg"><div class="charav" id="dsg-prev"></div><div class="stack" style="gap:12px">
       <label><span class="px sub">이름</span><input type="text" id="dsg-name" maxlength="10" value="${esc(me.name)}" placeholder="먹신 후보 이름"></label>
-      <div class="quota" id="dsg-quota">남은 생성 횟수 확인 중…</div>
+      <div class="quota" id="dsg-quota">남은 생성 횟수 확인 중…</div><div id="dsg-g" hidden style="min-height:44px"></div>
       <div class="inline"><button class="btn sec" type="button" id="dsg-photo">📷 사진으로 만들기</button><button class="btn" type="button" id="dsg-random">🎲 랜덤 생성</button></div>
       <div class="consent">사진은 카메라로 바로 찍어요(앨범 첨부 불가). 찍힌 만큼 옷도 반영돼요. 찍은 사진은 외부 AI 이미지 서비스로 보내 캐릭터를 그리는 데만 쓰고 서버에 저장하지 않아요.</div>
       <div class="confirm" id="dsg-confirm" hidden></div>
@@ -953,7 +954,12 @@ function openDesigner(){
   let q=null,busy=false,camBlocked=false;
   const draw=()=>{$('#dsg-prev').innerHTML=avatarHTML(me.avatar,lvlOf(xp.total),140)+`<div class="dsg-note">${spriteOf()?(me.sprite.kind==='photo'?'사진으로 만든 내 캐릭터':'랜덤으로 만든 내 캐릭터'):'아직 만든 캐릭터가 없어요. 지금은 기본 픽셀 캐릭터예요'}</div>`};
   const lock=()=>{const no=busy||!uid||!q||q.left<=0||q.dayFull;$('#dsg-random').disabled=no;$('#dsg-photo').disabled=no||camBlocked};
-  const showQuota=()=>{$('#dsg-quota').textContent=!uid?'입장(닉네임·PIN)하면 캐릭터를 만들 수 있어요':!q?'남은 횟수를 못 불러왔어요. 잠시 후 다시 열어 주세요'
+  let gShown=false;
+  const showQuota=()=>{const needG=!uid||q?.needGoogle;$('#dsg-g').hidden=!needG;
+    if(needG&&!gShown){gShown=true;googleButton($('#dsg-g'),async c=>{$('#dsg-msg').textContent='구글 계정 확인 중…';
+      try{const j=await googleSignIn(c,authInfo?.pin?{nick:authInfo.nick,pin:authInfo.pin}:{}); // 닉네임·PIN으로 들어와 있으면 그 기록에 연결
+        if(j.token)return location.reload();$('#dlg').close();if(await openAuth(c))location.reload()}catch(e){$('#dsg-msg').textContent=e.message}})}
+    $('#dsg-quota').textContent=!uid?'구글로 로그인하면 캐릭터를 만들 수 있어요':q?.needGoogle?'캐릭터 만들기는 구글 로그인 후에 돼요. 구글을 연결해도 지금 기록은 그대로예요':!q?'남은 횟수를 못 불러왔어요. 잠시 후 다시 열어 주세요'
     :q.dayFull?'오늘 전체 생성이 꽉 찼어요. 내일 다시 만들 수 있어요':q.paid?`오늘 ${q.left}회 남음`:q.left>0?`남은 생성 ${q.left}/${q.limit}회`:`무료 생성 ${q.limit}회를 다 썼어요(유료 플랜에서 계속 바꿀 수 있어요 — 준비 중)`;lock()};
   const useText=()=>q?.paid?'오늘 남은 횟수에서 1회를 써요':`${q?.limit??2}회 중 1회를 써요`;
   const ask=(html,yes,more='')=>{const c=$('#dsg-confirm');c.innerHTML=`${html}<div class="inline"><button class="btn" type="button" id="cf-yes">만들기</button>${more}<button class="btn ghost" type="button" id="cf-no">취소</button></div>`;c.hidden=false;
@@ -985,7 +991,7 @@ const loadAuth=()=>{try{return JSON.parse(localStorage.getItem(AUTHKEY)||'null')
 let authInfo=loadAuth();
 function remoteDB(base){
   const data={},listeners=new Set(),cols=new Set(),loaded=new Set();let lastT=0,syncing=false;
-  const hdr=()=>authInfo?{'Authorization':`Bearer ${authInfo.uid}:${authInfo.pin}`}:{};
+  const hdr=authHdr;
   const notify=()=>listeners.forEach(l=>l());
   const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const merge=(a,b)=>{for(const k in b)a[k]=b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])?merge({...(a[k]||{})},b[k]):b[k];return a};
@@ -1029,15 +1035,41 @@ function remoteUser(db){
   return {id:async()=>id,me:async()=>({id,name:authInfo?.name||''}),
     profiles:async ids=>Object.fromEntries(await Promise.all(ids.map(async i=>[i,{id:i,name:await nameOf(i),isMe:i===id}])))};
 }
-/* ---------- 입장: 닉네임 + PIN ---------- */
-function openAuth(){
+/* ---------- 구글 로그인(GIS): ID 토큰 → Worker /auth/google(서명·aud·iss·exp 검증) → 세션 토큰. 캐릭터 만들기는 구글 로그인만 ---------- */
+const GOOGLE_CLIENT_ID=''; // OAuth 클라이언트 ID(공개값). worker/wrangler.toml 의 GOOGLE_CLIENT_ID 와 같은 값. 비어 있으면 버튼이 안 나온다
+let gsiP=null;
+const loadGsi=()=>gsiP||=new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=ok;s.onerror=()=>{gsiP=null;no(new Error('gsi'))};document.head.append(s)});
+async function googleButton(el,onCred){
+  if(!GOOGLE_CLIENT_ID||!el)return false;
+  try{await loadGsi();google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:r=>onCred(r.credential)});
+    google.accounts.id.renderButton(el,{theme:'filled_black',size:'large',shape:'rectangular',text:'continue_with',locale:'ko',width:Math.min(300,el.clientWidth||300)});return true}
+  catch(e){console.warn(e);return false}
+}
+/* 성공이면 {token…}(저장까지), 처음 온 구글 계정이면 {need:'nick'} */
+async function googleSignIn(credential,extra={}){
+  const r=await fetch(DBBASE+'/auth/google',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential,...extra})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||'구글 로그인 실패');
+  if(j.token){authInfo={uid:j.uid,name:j.name,token:j.token,g:1};try{localStorage.setItem(AUTHKEY,JSON.stringify(authInfo))}catch{}}
+  return j;
+}
+/* ---------- 입장: 구글 또는 닉네임 + PIN ---------- */
+function openAuth(cred=null){
   return new Promise(resolve=>{
-    const d=$('#authdlg');
-    $('#auth-form').onsubmit=async e=>{e.preventDefault();const nick=$('#auth-nick').value.trim(),pin=$('#auth-pin').value.trim();$('#auth-msg').textContent='확인 중…';
-      try{const r=await fetch(DBBASE+'/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nick,pin})});const j=await r.json();
+    const d=$('#authdlg'),msg=$('#auth-msg'),pinEl=$('#auth-pin');
+    const done=j=>{d.close();toast(j.isNew?`${j.name} 첫 입장! 캐릭터를 꾸며요`:`${j.name} 다시 왔군`);resolve(true)};
+    const setCred=c=>{cred=c;pinEl.required=!c;msg.textContent=c?'구글 계정 확인됐어요. 처음이면 쓸 닉네임을, 예전 닉네임이 있으면 그 닉네임·PIN을 넣고 입장을 눌러요':'처음이면 그 닉네임으로 새로 만들어져요.'};
+    const vals=()=>{const nick=$('#auth-nick').value.trim(),pin=pinEl.value.trim();return nick?{nick,pin}:{}};
+    googleButton($('#auth-g'),async c=>{msg.textContent='구글 계정 확인 중…';
+      try{const j=await googleSignIn(c,vals());if(j.token)return done(j);setCred(c);$('#auth-nick').focus()}
+      catch(err){setCred(c);msg.textContent=err.message}}).then(ok=>{$('#auth-gbox').hidden=!ok});
+    setCred(cred);
+    $('#auth-form').onsubmit=async e=>{e.preventDefault();const nick=$('#auth-nick').value.trim(),pin=pinEl.value.trim();msg.textContent='확인 중…';
+      try{if(cred){const j=await googleSignIn(cred,vals());if(!j.token)throw new Error('닉네임을 넣어 주세요');return done(j)}
+        const r=await fetch(DBBASE+'/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nick,pin})});const j=await r.json();
         if(!r.ok)throw new Error(j.error||'입장 실패');authInfo={nick,pin,uid:j.uid,name:j.name};try{localStorage.setItem(AUTHKEY,JSON.stringify(authInfo))}catch{}
-        d.close();toast(j.isNew?`${j.name} 첫 입장! 캐릭터를 꾸며요`:`${j.name} 다시 왔군`);resolve(true)}
-      catch(err){$('#auth-msg').textContent=err.message}};
+        done(j)}
+      catch(err){msg.textContent=err.message}};
     $('#auth-skip').onclick=()=>{d.close();resolve(false)};
     d.showModal();
   });
@@ -1070,7 +1102,7 @@ async function boot(){
   if(uid){const pd=(await db.doc('players/'+uid).get()).data();if(pd){me={...me,...pd,avatar:{...me.avatar,...(pd.avatar||{})}}}if(!me.name)me.name=authInfo.name}
   $('#hud-me').textContent=uid?(me.name||authInfo.name):'GUEST';$('#hud-out').textContent=uid?'나가기':'입장';renderChar();
   $('#hud-out').onclick=async()=>{if(uid){try{localStorage.removeItem(AUTHKEY)}catch{}location.reload()}else{if(await openAuth())location.reload()}};
-  $('#login-note').textContent=uid?'기록은 서버에 저장돼요. 다른 기기에서도 같은 닉네임·PIN으로 입장하면 그대로 이어져요.':'구경만 하는 중. 기록하려면 오른쪽 위 "입장"을 눌러요.';
+  $('#login-note').textContent=uid?(authInfo.token?'기록은 서버에 저장돼요. 다른 기기에서도 같은 구글 계정으로 로그인하면 그대로 이어져요.':'기록은 서버에 저장돼요. 캐릭터를 만들려면 꾸미기에서 구글 계정을 연결해요.'):'구경만 하는 중. 기록하려면 오른쪽 위 "입장"을 눌러요.';
   renderSelect();
   menusUnsub=db.collection('menus').onSnapshot(s=>{customs=s.docs.map(d=>({id:d.id,...d.data()}));scheduleXP()});
   const fromHash=()=>{const h=location.hash.slice(1);if(/^[a-z0-9_]+$/i.test(h)&&h!==menu?.id)enter(h)};
