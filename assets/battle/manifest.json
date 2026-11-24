@@ -1,5 +1,6 @@
 {
   "jjinmandu": {
+    "facing": "left",
     "villain": {
       "idle": {
         "src": "jjinmandu-villain-idle.webp",

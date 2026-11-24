@@ -20,7 +20,7 @@ STYLE = ("16-bit retro arcade pixel art sprite, chunky crisp pixels, no anti-ali
 ART = {
     "villain": ("jjinmandu", "A chubby steamed dumpling (Korean jjinmandu, pleated top) as a lovable boss villain character. "
                 "Tiny pink devil horns, a big kind happy smile, rosy cheeks, smug but friendly eyebrows, little arms on hips, "
-                "a wisp of white steam above. It looks delicious and warm, never scary.", "1:1", 192),
+                "a wisp of white steam above. It looks delicious and warm, never scary. Three-quarter view facing left, toward the left side of the frame.", "1:1", 192),
     "dumpling": ("jjinmandu", "One small plump steamed dumpling with pleats, glossy, a tiny sparkle, flying projectile pose.", "1:1", 64),
     "steamer": ("jjinmandu", "A round bamboo dumpling steamer basket seen from the side, with lid, woven bamboo texture, "
                 "a few white steam puffs on top. Wide shape.", "16:9", 220),
@@ -62,6 +62,8 @@ def save_sheet(name, im, manifest):
     for k in where[:-1]:
         node = node.setdefault(k, {})
     node[where[-1]] = files
+    if name == "villain-sheet":  # 프롬프트가 왼쪽을 보게 한다. 그림이 오른쪽을 보면 manifest 에서 "right" 로 고치면 화면이 뒤집는다
+        node["facing"] = "left"
 
 
 def key():

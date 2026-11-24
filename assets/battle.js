@@ -51,6 +51,7 @@ const CSS = `
 .bt-ghost{pointer-events:none;z-index:1}
 .bt-p svg,.bt-ghost svg{width:min(40vw,190px);height:auto}
 .bt-v{position:absolute;right:2%;bottom:9%;z-index:1;line-height:0;text-align:center;transform-origin:50% 100%}
+.bt-v.flip .pix{transform:scaleX(-1)}
 .bt-v .emo{font-size:min(32vw,140px);line-height:1;display:block;filter:drop-shadow(6px 6px 0 #07061a);animation:bt-bob 1.6s steps(4) infinite}
 .bt-v .horn{position:absolute;top:-6px;width:0;height:0;border:10px solid transparent;border-bottom:18px solid var(--m)}
 .bt-v .horn.l{left:22%}.bt-v .horn.r{right:22%}
@@ -146,6 +147,7 @@ export async function openBattle(ctx) {
   const pHTML = (pose) => (PF ? pix(PF[pose], kP) + (ctx.badge || "") : ctx.avatar(pose !== "idle")); // badge: 등급 띠·왕관 덧그림
   const setP = (pose) => { poseP = pose; P.innerHTML = pHTML(pose); };
   const setV = (pose) => { poseV = pose; if (VF) V.innerHTML = pix({ ...VF[pose], src: BASE + "battle/" + VF[pose].src }, kV); };
+  V.classList.toggle("flip", art.facing === "right"); // 빌런은 늘 왼쪽(플레이어 쪽)을 본다. manifest facing 이 right 면 뒤집는다
   const fit = () => {
     const tall = arena.clientHeight * 0.56, hmax = (F) => Math.max(...Object.values(F).map((f) => f.h));
     if (PF) kP = Math.max(1, Math.floor(tall / hmax(PF)));
