@@ -85,3 +85,42 @@ test("모든 칸 전신(잘림 금지)·띠가 모든 칸에 보이게", () => {
     assert.match(t, /yellow[^.]*belt[^.]*clearly visible in every cell/);
   }
 });
+
+// 한 칸(32x32) 시트를 2x2 중 왼쪽 위 칸으로 넣는 도우미
+function oneCell(draw) {
+  const W = 64, px = new Uint8ClampedArray(W * W * 4);
+  for (let i = 0; i < W * W; i++) px.set([255, 0, 255, 255], i * 4);
+  draw((x, y, c) => px.set([...c, 255], (y * W + x) * 4));
+  return sheetFrames(px, W, W, { scale: 1, inset: 0, halo: false })[0];
+}
+const SKIN = [245, 192, 165], BLUSH = [255, 140, 170], LINE = [20, 16, 42];
+
+test("플레이어 시트(halo:false): 마젠타에서 피부로 부드럽게 이어져도 얼굴·분홍 볼은 지우지 않는다", () => {
+  const f = oneCell((set) => {
+    for (let y = 8; y < 20; y++) for (let x = 8; x < 20; x++) set(x, y, (x === 12 || x === 13) && y === 14 ? BLUSH : SKIN);
+    for (let i = 1; i < 8; i++) { const c = [255, 0, 255].map((m, k) => Math.round(m + ((SKIN[k] - m) * i) / 8)); for (let y = 8; y < 20; y++) set(i, y, c); } // 외곽선 없이 8단계로 부드럽게 이어진 경계
+  });
+  let holes = 0;
+  for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) if (f.data[(y * f.w + x) * 4 + 3] === 0) holes++;
+  assert.equal(holes, 0);
+  assert.equal(f.h, 12);
+});
+
+test("그림 안 보라 옷은 남기고, 갇힌 순수 마젠타 조각만 지운다", () => {
+  const f = oneCell((set) => {
+    for (let y = 6; y < 26; y++) for (let x = 6; x < 26; x++) set(x, y, x === 6 || y === 6 || x === 25 || y === 25 ? LINE : [150, 50, 200]);
+    for (let y = 14; y < 17; y++) for (let x = 14; x < 17; x++) set(x, y, [255, 0, 255]);
+  });
+  const a = (x, y) => f.data[(y * f.w + x) * 4 + 3];
+  assert.equal(a(3, 3), 255); // 보라 옷
+  assert.equal(a(9, 9), 0); // 갇힌 마젠타
+});
+
+test("옆 칸에서 넘어온 조각(칸 가장자리에 닿은 작은 덩어리)은 버린다", () => {
+  const f = oneCell((set) => {
+    for (let y = 6; y < 26; y++) for (let x = 8; x < 18; x++) set(x, y, LINE);
+    for (let y = 4; y < 28; y++) for (let x = 30; x < 32; x++) set(x, y, LINE); // 오른쪽 끝 조각
+    set(22, 10, [255, 240, 120]); // 반짝이(가장자리 안 닿음)는 남긴다
+  });
+  assert.equal(f.w, 15); // x 8..22
+});

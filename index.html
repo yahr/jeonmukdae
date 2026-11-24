@@ -916,7 +916,7 @@ function avatarSVG(av,lvl,size,happy){ // happy: 행복 KO 얼굴(감은 눈 웃
    만든 게 없으면 픽셀 SVG(avatarSVG). 등급(띠 색·먹신 왕관)은 생성 그림 위에 덧그린다(그림은 늘 흰 띠로 그리게 lvl 0으로 요청) ---------- */
 let spriteLib=null; // assets/sprite.js (부트 때 불러옴)
 function spriteOf(){return me.sprite?.v===2&&spriteLib?spriteLib.poseFrames(me.sprite):null} // 동작 9개(예전 2x2는 가까운 프레임으로). v1(예전 자동 생성)은 안 쓴다
-const beltBadge=(lvl,size)=>{const L=LEVELS[lvl]||LEVELS[0];return `<i class="belt" style="--bc:${L.c};width:${Math.max(10,Math.round(size*.36))}px" title="${esc(L.n)} 띠"></i>${L.god?`<i class="crown" style="font-size:${Math.max(10,Math.round(size*.3))}px">👑</i>`:''}`};
+const beltBadge=(lvl,size)=>{const L=LEVELS[lvl]||LEVELS[0];if(!lvl)return ''; /* 흰 띠(견습)는 그림에 이미 있어 덧그리지 않음 */return `<i class="belt" style="--bc:${L.c};width:${Math.max(10,Math.round(size*.36))}px" title="${esc(L.n)} 띠"></i>${L.god?`<i class="crown" style="font-size:${Math.max(10,Math.round(size*.3))}px">👑</i>`:''}`};
 function avatarHTML(av,lvl,size,pose='idle'){
   const f=spriteOf()?.[pose];
   return f?`<span class="sprw"><img class="spr" src="${esc(f.src)}" width="${size}" height="${Math.round(size*f.h/f.w)}" alt="내 캐릭터" draggable="false">${beltBadge(lvl,size)}</span>`:avatarSVG(av,lvl,size,pose!=='idle');
@@ -933,7 +933,7 @@ async function genCharacter(photo){
   const r=await fetch(DBBASE+'/avatar/gen',{method:'POST',headers:{'Content-Type':'application/json',...authHdr()},body:JSON.stringify({avatar:av,lvl:0,image:photo,kind:photo?'photo':null})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok||!j.data)throw Object.assign(new Error(j.error||'캐릭터를 못 그렸어요. 잠시 후 다시 해 봐요'),{quota:j.quota});
-  const fr=await spriteLib.imageToFrames(`data:${j.mime};base64,${j.data}`,{cols:3,rows:3,scale:3}); // 3x3 = 동작 9개
+  const fr=await spriteLib.imageToFrames(`data:${j.mime};base64,${j.data}`,{cols:3,rows:3,scale:3,halo:false}); // 3x3 = 동작 9개, 후광 지우기 끔(분홍 볼 보호)
   await saveMe({avatar:av,sprite:{v:2,grid:3,kind:photo?'photo':'random',frames:fr.map(f=>f.url),sizes:fr.map(f=>[f.w,f.h]),t:Date.now()}});
   const pd=(await db.doc('players/'+uid).get()).data();if(pd?.sprite)me.sprite=pd.sprite; // 서버가 R2 주소로 바꾼 것
   renderChar();return j;

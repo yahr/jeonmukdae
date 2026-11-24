@@ -1,31 +1,50 @@
-// AI가 그린 2x2 캐릭터 시트 → 프레임 4장(투명 배경, 픽셀 축소). 순수 함수라 브라우저 캔버스와 node 테스트가 같이 쓴다.
-// 시트는 바탕을 마젠타(#FF00FF)로 그리게 한다. 모델이 보라·노랑 후광 그라데이션을 섞는 일이 있어서
-// 칸 가장자리에서 비슷한 색을 따라 번지며 지우고(어두운 외곽선에서 멈춤), 갇힌 마젠타 조각도 지운다.
-// ponytail: 칸 안에 그림이 정확히 들어온다고 가정(프롬프트로 요구). 넘치면 잘린다.
+// AI가 그린 캐릭터 시트(2x2·3x3) → 프레임(투명 배경, 픽셀 축소). 순수 함수라 브라우저 캔버스와 node 테스트가 같이 쓴다.
+// 시트는 바탕을 마젠타(#FF00FF)로 그리게 한다. 칸 가장자리의 마젠타에서 시작해 이어진 마젠타만 지운다.
+// halo(빌런 시트용): 모델이 섞은 보라·노랑 후광 그라데이션도 비슷한 색을 따라 지운다. 플레이어 시트는 끈다(분홍 볼·피부로 새어 들어감).
+// 그림 안에 갇힌 바탕은 거의 순수한 마젠타만 지우고(보라 옷 보호), 칸 가장자리에 닿은 작은 덩어리(옆 칸에서 넘어온 조각)는 버린다.
+// ponytail: 칸 안에 그림이 들어온다고 가정(프롬프트로 요구). 가장 큰 덩어리가 칸 끝에 닿으면 그대로 둔다.
 
 const isMag = (r, g, b) => Math.min(r, b) - g > 90 && Math.abs(r - b) < 90;
+const isPure = (r, g, b) => r >= 200 && b >= 200 && g <= 70;
 
-function keyOut(px, w, h) {
+function keyOut(px, w, h, halo) {
   const bg = new Uint8Array(w * h), q = [];
+  const mag = (i) => isMag(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]);
   const near = (a, b) => Math.max(Math.abs(px[a * 4] - px[b * 4]), Math.abs(px[a * 4 + 1] - px[b * 4 + 1]), Math.abs(px[a * 4 + 2] - px[b * 4 + 2])) <= 28;
   const luma = (i) => px[i * 4] * 0.3 + px[i * 4 + 1] * 0.59 + px[i * 4 + 2] * 0.11;
   const edge = [];
   for (let x = 0; x < w; x++) edge.push(x, (h - 1) * w + x);
   for (let y = 0; y < h; y++) edge.push(y * w, y * w + w - 1);
-  for (const i of edge) if (!bg[i] && isMag(px[i * 4], px[i * 4 + 1], px[i * 4 + 2])) { bg[i] = 1; q.push(i); } // 그림이 칸 끝에 닿아도 그 점은 시작점이 아니다
+  for (const i of edge) if (!bg[i] && mag(i)) { bg[i] = 1; q.push(i); } // 그림이 칸 끝에 닿아도 그 점은 시작점이 아니다
   while (q.length) {
     const i = q.pop(), x = i % w;
     for (const n of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]) {
       if (n < 0 || n >= w * h || bg[n]) continue;
-      const c = n * 4;
-      if (isMag(px[c], px[c + 1], px[c + 2]) || (near(i, n) && luma(n) > 70)) { bg[n] = 1; q.push(n); }
+      if (mag(n) || (halo && near(i, n) && luma(n) > 70)) { bg[n] = 1; q.push(n); }
     }
   }
-  for (let i = 0; i < w * h; i++) if (bg[i] || isMag(px[i * 4], px[i * 4 + 1], px[i * 4 + 2])) px[i * 4 + 3] = 0;
+  for (let i = 0; i < w * h; i++) if (bg[i] || isPure(px[i * 4], px[i * 4 + 1], px[i * 4 + 2])) px[i * 4 + 3] = 0;
+  // 덩어리 나누기: 가장 큰 것은 두고, 칸 가장자리에 닿은 나머지는 버린다
+  const lab = new Int32Array(w * h).fill(-1), comps = [];
+  for (let s = 0; s < w * h; s++) {
+    if (lab[s] >= 0 || !px[s * 4 + 3]) continue;
+    const id = comps.length, st = [s], cells = [];
+    let edgeHit = false;
+    lab[s] = id;
+    while (st.length) {
+      const i = st.pop(), x = i % w, y = (i / w) | 0;
+      cells.push(i);
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1) edgeHit = true;
+      for (const n of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) if (n >= 0 && lab[n] < 0 && px[n * 4 + 3]) { lab[n] = id; st.push(n); }
+    }
+    comps.push({ cells, edgeHit });
+  }
+  const big = comps.reduce((m, c) => (c.cells.length > (m?.cells.length || 0) ? c : m), null);
+  for (const c of comps) if (c !== big && c.edgeHit) for (const i of c.cells) px[i * 4 + 3] = 0;
 }
 
 /** px: RGBA(Uint8ClampedArray) 시트 전체. 돌려줌: [{w,h,data}] 칸 순서(왼→오, 위→아래) */
-export function sheetFrames(px, W, H, { cols = 2, rows = 2, scale = 4, inset = 0.015 } = {}) {
+export function sheetFrames(px, W, H, { cols = 2, rows = 2, scale = 4, inset = 0.015, halo = true } = {}) {
   const out = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     const pad = Math.round((W / cols) * inset);
@@ -33,7 +52,7 @@ export function sheetFrames(px, W, H, { cols = 2, rows = 2, scale = 4, inset = 0
     const w = Math.round(((c + 1) * W) / cols) - pad - x0, h = Math.round(((r + 1) * H) / rows) - pad - y0;
     const cell = new Uint8ClampedArray(w * h * 4);
     for (let y = 0; y < h; y++) cell.set(px.subarray(((y0 + y) * W + x0) * 4, ((y0 + y) * W + x0 + w) * 4), y * w * 4);
-    keyOut(cell, w, h);
+    keyOut(cell, w, h, halo);
     let bx0 = w, by0 = h, bx1 = -1, by1 = -1;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (cell[(y * w + x) * 4 + 3]) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
     if (bx1 < 0) { out.push({ w: 1, h: 1, data: new Uint8ClampedArray(4) }); continue; }
