@@ -46,3 +46,4 @@ section{background:var(--panel);border:4px solid var(--fg);box-shadow:6px 6px 0 
 .foot{color:var(--dim);font-size:14px;border-top:2px dashed var(--panel2);padding-block:18px}
 @media (max-width:560px){.stats{grid-template-columns:1fr}.hex{justify-self:center}section{padding:14px}}
 .axes small{word-break:keep-all}
+.weap{color:#ff4fa3;word-break:keep-all}

@@ -193,9 +193,11 @@ export function renderDojo(data, d) {
 try{const r=await fetch('${API}/db/sync?cols='+encodeURIComponent('menus/'+div+'/spots,menus/'+div+'/missions,menus/'+div+'/kos')+'&since=0');const j=await r.json();
 const docs=(j.docs||[]).filter(x=>!x.deleted&&x.body);const spots=docs.filter(x=>x.col.endsWith('/spots')&&x.body.place&&String(x.body.place.id)===kid);
 const ms=docs.filter(x=>x.col.endsWith('/missions')&&x.body.place&&String(x.body.place.id)===kid);
-const kos=new Set(docs.filter(x=>x.col.endsWith('/kos')&&String(x.body.key)===kid).map(x=>x.body.by));
+const kd=docs.filter(x=>x.col.endsWith('/kos')).map(x=>x.body),kos=new Set(kd.filter(k=>String(k.key)===kid).map(k=>k.by));
+const MV=${JSON.stringify(div.axes.map((a) => a.move?.name || a.name))};let wp='';
+try{const c=await import('${rel}assets/battle-core.js');const w=c.weaponRank(kd,kid,MV.length);wp='<p class="weap">'+(w.length?'손님들이 뽑은 필살 무기: '+w.map((x,i)=>(i+1)+'위 '+MV[x.i]+' '+x.count+'번').join(' · '):kos.size?'아직 필살 무기 기록이 없어요':'아직 아무도 쓰러지지 않았어요')+'</p>';}catch(e){}
 const e=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-el.innerHTML='<p><b class="score">'+spots.length+'</b>번 격파됐어요. 행복 KO 당한 플레이어 <b class="score">'+kos.size+'</b>명.</p>'+(ms.length?'<ul>'+ms.map(m=>'<li>“'+e(m.body.title)+'” '+(m.body.done?'<span class="done">격파됨</span>':Object.values(m.body.votes||{}).filter(Boolean).length+'표')+'</li>').join('')+'</ul>':'<p class="note">아직 도발 미션이 없어요. 게임에서 첫 도발을 걸어 보세요.</p>')+'<p><a href="${rel}#'+div+'">게임에서 보기</a></p>';}catch(e){}})();
+el.innerHTML='<p><b class="score">'+spots.length+'</b>번 격파됐어요. 행복 KO 당한 플레이어 <b class="score">'+kos.size+'</b>명.</p>'+wp+'<p class="note">필살 무기는 플레이어들이 대결에서 실제로 누른 맛 기록이라 위 6각 능력치(운영자 평가)와 따로 세요.</p>'+(ms.length?'<ul>'+ms.map(m=>'<li>“'+e(m.body.title)+'” '+(m.body.done?'<span class="done">격파됨</span>':Object.values(m.body.votes||{}).filter(Boolean).length+'표')+'</li>').join('')+'</ul>':'<p class="note">아직 도발 미션이 없어요. 게임에서 첫 도발을 걸어 보세요.</p>')+'<p><a href="${rel}#'+div+'">게임에서 보기</a></p>';}catch(e){}})();
 </script>`;
   return page({ site, path: `dojo/${d.slug}/`, rel, title: `${name} | ${div.name} 부문 도장 - ${site.name}`, description, image, type: "article", jsonld, body });
 }

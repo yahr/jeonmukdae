@@ -156,7 +156,7 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 .offi{list-style:none;padding:0;margin:0;display:grid;gap:10px}
 .offi li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel2);border:3px solid var(--fg);padding:10px 12px}
 .offi a{color:var(--fg);text-decoration:none;display:grid;min-width:0}.offi a:hover b{color:var(--y)}
-.offi b{font-size:20px;font-weight:400}.offi small{color:var(--dim);font-size:14px}
+.offi b{font-size:20px;font-weight:400}.offi small{color:var(--dim);font-size:14px}.offi .weap,.villains .weap{color:var(--m);word-break:keep-all}
 .seo-links{list-style:none;padding:0;margin:0;display:grid;gap:6px}.seo-links a{color:var(--c)}
 @media (max-width:560px){.offi li{grid-template-columns:1fr}}
 .offi .acts{display:flex;gap:8px;flex-wrap:wrap}.offi .acts .btn{flex:1 1 auto}
@@ -428,10 +428,10 @@ async function renderOfficial(id){
   const wrap=$('#official-wrap');wrap.hidden=true;
   try{officialData??=await fetch('data/dojos.json').then(r=>r.ok?r.json():[])}catch{officialData=[]}
   const list=(officialData||[]).filter(d=>d.division===id).sort((a,b)=>a.order-b.order);if(!list.length||menu?.id!==id)return;
-  $('#official').innerHTML=list.map((d,i)=>`<li><a href="dojo/${esc(d.slug)}/"><b>${d.order}호 ${esc([d.name,d.branch].filter(Boolean).join(' '))}</b><small>${esc(d.address)}</small></a><div class="acts"><button class="btn" type="button" data-vs="${i}">😋 행복 대결</button><button class="btn sec" type="button" data-off="${i}">⚔ 격파 등록</button></div></li>`).join('');
+  $('#official').innerHTML=list.map((d,i)=>`<li><a href="dojo/${esc(d.slug)}/"><b>${d.order}호 ${esc([d.name,d.branch].filter(Boolean).join(' '))}</b><small>${esc(d.address)}</small><small class="weap" data-weap="${esc(d.kakaoId||d.slug)}"></small></a><div class="acts"><button class="btn" type="button" data-vs="${i}">😋 행복 대결</button><button class="btn sec" type="button" data-off="${i}">⚔ 격파 등록</button></div></li>`).join('');
   $('#official').onclick=e=>{const v=e.target.closest('[data-vs]');if(v)return battleOfficial(list[+v.dataset.vs]);const b=e.target.closest('[data-off]');if(!b)return;const d=list[+b.dataset.off];
-    pickPlace({id:d.kakaoId,place_name:[d.name,d.branch].filter(Boolean).join(' '),place_url:d.maps?.kakao||'',x:d.geo.lng,y:d.geo.lat,road_address_name:d.address,address_name:d.jibun||d.address})};
-  wrap.hidden=false;
+    pickPlace(dojoPlace(d))};
+  wrap.hidden=false;renderVillains();
   const vs=pendingVs&&list.find(d=>d.slug===pendingVs);if(vs){pendingVs=null;battleOfficial(vs)}
 }
 
@@ -439,11 +439,12 @@ async function renderOfficial(id){
 let pendingVs=(()=>{try{const q=new URLSearchParams(location.search),v=q.get('vs');if(v){q.delete('vs');history.replaceState(null,'',location.pathname+(q.size?'?'+q:'')+location.hash)}return v&&/^[a-z0-9-]+$/.test(v)?v:null}catch{return null}})(); // 정적 도장 페이지 → ?vs=<slug>#<부문>
 let divData=null,coreMod=null;
 const playersFor=ids=>{const ss=scores.filter(x=>ids.has(x.spot)&&Array.isArray(x.s));return {n:ss.length,avg:[0,1,2,3,4,5].map(i=>ss.length?ss.reduce((a,x)=>a+(+x.s[i]||0),0)/ss.length:0)}};
+const dojoPlace=d=>({id:d.kakaoId,place_name:[d.name,d.branch].filter(Boolean).join(' '),place_url:d.maps?.kakao||'',x:d.geo.lng,y:d.geo.lat,road_address_name:d.address,address_name:d.jibun||d.address});
 function battleOfficial(d){const ids=new Set(spots.filter(s=>d.kakaoId&&s.place?.id===d.kakaoId).map(s=>s.id));
-  startBattle({key:d.kakaoId||d.slug,slug:d.slug,name:[d.name,d.branch].filter(Boolean).join(' '),stats:d.stats,players:playersFor(ids)})}
+  startBattle({key:d.kakaoId||d.slug,slug:d.slug,name:[d.name,d.branch].filter(Boolean).join(' '),stats:d.stats,players:playersFor(ids),spotIds:[...ids],place:dojoPlace(d)})}
 function battleSpot(sp){const off=(officialData||[]).find(d=>d.division===menu.id&&sp.place?.id&&d.kakaoId===sp.place.id);if(off)return battleOfficial(off);
   const ids=new Set(spots.filter(s=>s.id===sp.id||(sp.place?.id&&s.place?.id===sp.place.id)).map(s=>s.id));
-  startBattle({key:sp.place?.id||sp.id,name:sp.name,stats:null,players:playersFor(ids)})}
+  startBattle({key:sp.place?.id||sp.id,name:sp.name,stats:null,players:playersFor(ids),spotIds:[sp.id,...[...ids].filter(x=>x!==sp.id)]})}
 const villainPool=()=>{const sn=seasonOf(menu.id);return sn&&!allTime?kos.filter(k=>inSeason(k,sn)):kos};
 async function startBattle(t){
   if(!menu)return;const m=menu;
@@ -452,20 +453,37 @@ async function startBattle(t){
     const div=divData.find(d=>d.slug===m.id),axes=div?div.axes:m.axes.map((name,i)=>({key:'a'+i,name}));
     const [core,ui]=await Promise.all([coreMod??=import('./assets/battle-core.js'),import('./assets/battle.js')]);
     const lvl=lvlOf(xp.total);
-    ui.openBattle({div:m.id,target:t,axes,emoji:m.e,koLine:div?.koLine||`오늘 나는 ${m.name}에게 졌다`,
+    ui.openBattle({div:m.id,target:t,axes,damage:div?.damage,emoji:m.e,koLine:div?.koLine||`오늘 나는 ${m.name}에게 졌다`,
       stats:core.statsFor({stats:t.stats,axes,players:t.players}),player:spriteOf(me.avatar,lvl),avatar:h=>avatarSVG(me.avatar,lvl,130,h),
-      onKO:async({bites})=>{
+      onDraft:draft=>fillDraft(t,draft),
+      onKO:async({uses,presses:bites})=>{
         if(!db||!uid||!authInfo)return {saved:false,note:'입장(닉네임·PIN)하면 이 KO가 빌런 순위에 올라가요'};
         const ref=db.doc(`menus/${m.id}/kos/${t.key}__${uid}`),prev=(await ref.get()).data(),sn=seasonOf(m.id);
-        await ref.set({by:uid,key:t.key,name:t.name,...(t.slug?{slug:t.slug}:{}),bites:prev?.bites?Math.min(prev.bites,bites):bites,n:(prev?.n||0)+1,t:Date.now(),...(sn?{season:sn.n}:{})});
+        const sum=uses.map((c,i)=>c+(+prev?.uses?.[i]||0)); // 손님들이 뽑은 필살 무기: 내 KO마다 누른 기술 횟수를 더해 둔다
+        await ref.set({by:uid,key:t.key,name:t.name,...(t.slug?{slug:t.slug}:{}),bites:prev?.bites?Math.min(prev.bites,bites):bites,n:(prev?.n||0)+1,uses:sum,t:Date.now(),...(sn?{season:sn.n}:{})});
         const r=core.villainRank(villainPool()),i=r.findIndex(v=>v.key===t.key);
         return {saved:true,note:`이 빌런에게 쓰러진 플레이어 ${r[i]?.kos||1}명 · ${m.name} 부문 최강 빌런 ${i+1}위`}}});
   }catch(e){console.warn(e);toast('대결 화면을 못 불러왔어요. 잠시 후 다시')}
 }
-function renderVillains(){
-  if(!kos.length){$('#villain-wrap').hidden=true;return}
-  (coreMod??=import('./assets/battle-core.js')).then(c=>{const r=c.villainRank(villainPool());$('#villain-wrap').hidden=!r.length;
-    $('#villains').innerHTML=r.slice(0,10).map((v,i)=>`<li><span class="n">${i+1}</span><div><b>${esc(v.name)}</b><small>평균 ${v.avgBites}입 만에 행복 KO${i===0?' · 👑 최강 빌런':''}</small></div><span class="ko">${v.kos}<br>KO</span></li>`).join('')}).catch(e=>console.warn(e));
+/* 오늘 나를 쓰러뜨린 맛 → 6각 평가 초안. 기존 평가 창/격파 등록 폼에 채우기만 하고, 저장은 사용자가 누른다 */
+function fillDraft(t,draft){
+  const id=(t.spotIds||[]).find(x=>spots.some(s=>s.id===x)),set=pre=>draft.forEach((v,i)=>{const a=$(`#${pre}-a${i}`),b=$(`#${pre}-v${i}`);if(a)a.value=v;if(b)b.textContent=v});
+  if(id){openDetail(id);set('r');$('#rate-form')?.scrollIntoView({block:'center'})}
+  else if(t.place){pickPlace(t.place);set('s')}
+  else return;
+  toast('오늘 나를 쓰러뜨린 맛으로 6각을 채웠어요. 확인하고 저장을 눌러요');
+}
+/* 손님들이 뽑은 필살 무기(사람들이 실제로 누른 기록. 운영자 6각과 따로) */
+const weaponTxt=(c,key)=>{const w=c.weaponRank(villainPool(),key),ax=divData?.find(d=>d.slug===menu.id)?.axes;
+  return w.length?'손님들이 뽑은 필살 무기: '+w.map((x,i)=>`${i+1}위 ${ax?.[x.i]?.move?.name||menu.axes[x.i]} ${x.count}`).join(' · '):villainPool().some(k=>k.key===key)?'아직 필살 무기 기록이 없어요':'아직 아무도 쓰러지지 않았어요'};
+async function renderVillains(){
+  try{
+    const c=await (coreMod??=import('./assets/battle-core.js'));divData??=await fetch('data/divisions.json').then(r=>r.ok?r.json():[]).catch(()=>[]);
+    if(!menu)return;
+    document.querySelectorAll('#official [data-weap]').forEach(el=>el.textContent=weaponTxt(c,el.dataset.weap));
+    const r=c.villainRank(villainPool());$('#villain-wrap').hidden=!r.length;
+    $('#villains').innerHTML=r.slice(0,10).map((v,i)=>`<li><span class="n">${i+1}</span><div><b>${esc(v.name)}</b><small>평균 ${v.avgBites}입 만에 행복 KO${i===0?' · 👑 최강 빌런':''}</small><small class="weap">${esc(weaponTxt(c,v.key))}</small></div><span class="ko">${v.kos}<br>KO</span></li>`).join('');
+  }catch(e){console.warn(e)}
 }
 
 function subscribe(){

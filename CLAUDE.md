@@ -22,11 +22,11 @@
 |---|---|
 | `index.html` | 게임 전체(한 파일). `<!--SEO-->`, `<!--DOJO-LINKS-->` 자리는 빌드가 채운다 |
 | `data/site.json` | 사이트 이름·주소(`baseUrl`)·검색 등록 인증값 |
-| `data/divisions.json` | 부문(찐만두 등): 시즌 기간, 소개, 6각 능력치 이름·산정 기준, 축별 필살기(`move: {name, fx}`), 패배 문구 `koLine` |
+| `data/divisions.json` | 부문(찐만두 등): 시즌 기간, 소개, 6각 능력치 이름·산정 기준, 축별 느낌 버튼 `feel`·결과 말 `word`·필살기 `move`, 패배 문구 `koLine`, 데미지 계수 `damage` |
 | `data/dojos.json` | 운영자가 여는 공식 도장. 모르는 값은 `null` → 화면에 "확인 중" |
 | `content/dojo/<slug>.md` | 도장 후기(운영자가 직접 사 먹고 씀). `draft: true`면 안 나감 |
 | `content/guide/<slug>.md` | 큐레이션 글. 머리말 `title`, `description`, `date`, `dojos: slug1, slug2` |
-| `assets/battle-core.js` | 행복한 빌런 숫자 로직(게이지·콤보·KO·최강 빌런 집계). 테스트 `scripts/battle.test.mjs` |
+| `assets/battle-core.js` | 행복한 빌런 숫자 로직: 기술 1/n + 같은 기술 k번째 ×(1+0.5(k−1)) 상한 3배, 정신줄=100−행복, 오버킬, 필살 무기·손님 집계, 평가 초안, 최강 빌런. 테스트 `scripts/battle.test.mjs` |
 | `assets/battle.js` | 대결 화면 연출. 버튼 누를 때 `import()`로 불러온다(첫 로딩에 안 들어감) |
 | `assets/battle/` | Gemini로 만든 대결 그림(WebP)과 `manifest.json`: 부문별 빌런 표정 4컷(idle·taunt·special·win)·소품, 손님용 기본 캐릭터 4컷 `player-*`(idle·bite·hit·ko) |
 | `assets/sprite.js` | 2x2 표정 시트 → 프레임 자르기(마젠타·후광 지우기, 픽셀 축소), 캐릭터 서명, 플레이어 프롬프트. 브라우저·Worker·`gen_art.py`가 같이 씀. 테스트 `scripts/sprite.test.mjs` |
@@ -61,7 +61,7 @@ cd worker && wrangler deploy  # API 고칠 때
 - **사진 원칙.** 카카오맵 등 외부 매장 사진은 내려받거나 이미지 생성 입력으로 쓰지 않는다. 운영자가 찍은 사진, 사장님이 준 사진만 쓴다.
 - **가게를 나쁘게 묘사하지 않는다.** 빌런 콘셉트도 칭찬의 다른 이름이다.
 - **공정성.** 한 부문에 같은 동네 가게를 3~5곳 함께 열고 산정 기준을 공개한다.
-- **행복 KO 기록 규칙.** KO 문서는 플레이어가 자기 것만 쓴다(Worker `canWrite`의 `by===uid`). 빌런 순위는 쓰러진 사람 수 → 평균 입 수 순. 대결 그림의 표정은 늘 행복해야 하고 찡그림·고통은 다시 만든다.
+- **행복 KO 기록 규칙.** KO 문서는 플레이어가 자기 것만 쓴다(Worker `canWrite`의 `by===uid`). 빌런 순위는 쓰러진 사람 수 → 평균 입 수 순. 문서의 `uses`(기술별 누른 횟수 누적)는 "손님들이 뽑은 필살 무기"용이고 운영자 `stats`와 섞지 않는다. 평가 초안은 폼에 채우기만 하고 저장은 사용자가 누른다. 대결 그림의 표정은 늘 행복해야 하고 찡그림·고통은 다시 만든다.
 - **브라우저 저장 키 `sundae-quest-*`는 바꾸지 않는다.** 바꾸면 사용자 로그인이 풀린다(옛 폴더 이름의 흔적).
 - 커밋은 `git -c user.name=yahr -c user.email=light.ez.glona@gmail.com commit …`(전역 git 사용자 미설정), 서명 줄 없이.
 
@@ -72,7 +72,8 @@ cd worker && wrangler deploy  # API 고칠 때
 - [x] 정적 생성, URL 구조, 도장 페이지, JSON-LD, 메타·OG, sitemap·robots·llms.txt, 자동 배포, 찐만두 부문 데이터
 - [x] 3-8 행복한 빌런: 행복 게이지, 필살기 6종 연출(히트 스톱·흔들림·플래시·행복 +숫자·진동), 행복 KO·결과 화면, 최강 빌런 순위(`menus/<부문>/kos/<가게>__<uid>`, 가게마다 한 사람 1회), KO XP 15, 정적 도장 페이지 `?vs=<slug>` 진입 (2026-11-24)
 - [ ] 3-8-2 부문별 관능 어휘 조사(`npm run lexicon`, 네이버 검색 API 키 필요)
-- [~] 3-8-3 플레이어 캐릭터 시트: 전신 4컷(대기·한 입·맞음·행복 KO 배 불룩)을 Gemini로 생성해 게임 전체 아바타·대결에 씀(2026-11-24). 남은 것: 넉백·다운을 따로 나눈 프레임, 표정 자동 검수, 사진 동의 문구 법무 확인
+- [x] 3-8-1 조작 개편(2026-11-24): 느낌 버튼 2×3, 정신줄(HP) 표시, 1/n 데미지·반복 배율·오버킬, KO 슬로우모션 날아가기(흑백·잔상·카메라 추적·착지 먼지), 이 집의 필살 무기·손님들이 뽑은 필살 무기(게임·정적 페이지), 오늘 나를 쓰러뜨린 맛 6각·평가 초안
+- [~] 3-8-3 플레이어 캐릭터 시트: 전신 4컷(대기·한 입·맞음·행복 KO 배 불룩)을 Gemini로 생성해 게임 전체 아바타·대결에 씀(2026-11-24). 남은 것: 날아가는 전용 프레임(지금은 맞음 프레임을 회전, 머리·옷 펄럭임 없음)·다운 프레임 분리, 표정 자동 검수, 사진 동의 문구 법무 확인
 - [ ] Worker 배포: 이 환경엔 wrangler 로그인이 없어 `/avatar/gen`이 아직 운영에 없음. `wrangler secret put GEMINI_API_KEY` 후 `wrangler deploy` 하면 입장한 사람 캐릭터가 그려짐(그 전엔 손님 기본 그림·SVG)
 - [ ] 3-8-4 도트 매장 배경(업종별 타일셋)
 - [ ] 3-9 스포크 문구 뽑기(`npm run spoke`), 첫 후기 본문(방문 후)
