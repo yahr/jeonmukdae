@@ -328,9 +328,9 @@ footer{color:var(--dim);font-size:14px;text-align:center}
 <dialog id="camdlg"><div class="detail" id="camui"></div></dialog>
 <dialog id="authdlg"><form class="detail" id="auth-form">
   <div><span class="tape">INSERT COIN</span><h2 style="margin-top:8px">전국먹자대회 입장</h2><div class="meta sub">구글로 계속하면 다른 기기에서도 내 캐릭터·기록이 따라와요. 캐릭터 만들기는 구글 로그인이 필요해요.</div></div>
-  <div id="auth-gbox" hidden><div id="auth-g" style="min-height:44px"></div><div class="sub" style="margin-top:6px">예전 닉네임·PIN이 있으면 아래에 먼저 넣고 구글 버튼을 누르면 그 기록에 연결돼요.</div></div>
   <label><span class="px sub">닉네임 (1~12자)</span><input type="text" id="auth-nick" maxlength="12" required autocomplete="username"></label>
   <label><span class="px sub">PIN (숫자 4~8자리 · 잊으면 못 찾아요)</span><input type="password" id="auth-pin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" required autocomplete="current-password"></label>
+  <div id="auth-gbox" hidden><div id="auth-g" style="min-height:44px"></div><div class="sub" style="margin-top:6px">예전 닉네임·PIN이 있으면 위에 먼저 넣고 구글 버튼을 누르면 그 기록에 연결돼요.</div></div>
   <div class="sub" id="auth-msg">처음이면 그 닉네임으로 새로 만들어져요.</div>
   <div class="inline"><button class="btn" type="submit">▶ 입장</button><button class="btn ghost" type="button" id="auth-skip">구경만 할래요</button></div>
 </form></dialog>
