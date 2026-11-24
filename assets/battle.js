@@ -10,7 +10,7 @@ const FX = ["drops", "combo", "counter", "stack", "steam", "bag"];
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-let manifest = null, art = {}; // art: 이 부문 그림 {villain:{idle,taunt,special,win}, dumpling, steamer, bag, ko}
+let manifest = null, art = {}; // art: 이 부문 그림 {facing, villain:{idle,taunt,special,win}, 소품: mini(연타)·rain(쏟아짐)·cube(연사)·tag(가격표)·dumpling·steamer·bag·ko}
 const loadArt = async (div) => { manifest ??= await fetch(BASE + "battle/manifest.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({})); art = manifest[div] || {}; };
 const img = (k, cls = "", fallback = "") => (typeof art?.[k] === "string" ? `<img class="${cls}" src="${BASE}battle/${esc(art[k])}" alt="" draggable="false">` : fallback);
 const pix = (f, k) => `<img class="pix" src="${esc(f.src)}" width="${f.w * k}" height="${f.h * k}" alt="" draggable="false">`;
@@ -69,7 +69,11 @@ const CSS = `
 .bt-steamer.art{border:0;background:none;box-shadow:none}
 .bt-puff{position:absolute;border-radius:50%;background:radial-gradient(#fff 0,#ffffffcc 40%,#fff0 70%)}
 .bt-bag{position:absolute;bottom:26%;font-size:56px;line-height:1}.bt-bag img{width:80px;image-rendering:pixelated}
-.bt-mini{position:absolute;font-size:34px;line-height:1}
+.bt-mini{position:absolute;font-size:34px;line-height:1}.bt-mini img{width:56px;image-rendering:pixelated;display:block}.bt-cubes img{width:40px}
+.bt-cube{display:block;width:30px;height:30px;background:#e8562a;border:3px solid #7a1f1f;box-shadow:inset 4px 4px 0 #ff9a6b}
+.bt-wave{position:absolute;left:-10%;right:-10%;bottom:0;height:75%;border-radius:50% 50% 0 0/22% 22% 0 0;background:linear-gradient(#fffdf6 0,#f3e7cf 35%,#e6d3ad 100%);box-shadow:0 -10px 0 #ffffffaa;z-index:6}
+.bt-tag{position:absolute;left:50%;top:55%;z-index:7}.bt-tag img{width:120px;image-rendering:pixelated;display:block}
+.bt-v .pix{filter:drop-shadow(0 0 1px #fff8) drop-shadow(0 0 10px #ffd23f40)}
 .bt-pad{padding:8px 10px max(12px,env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;background:#12102a;z-index:3}
 .bt-feel{position:relative;font-family:var(--ko);background:var(--y);color:#000;border:3px solid #000;box-shadow:4px 4px 0 #000;padding:7px 8px 6px;min-height:52px;text-align:left;cursor:pointer;touch-action:manipulation;display:grid;gap:2px;word-break:keep-all}
 .bt-feel:nth-child(4n+2),.bt-feel:nth-child(4n+3){background:var(--c)}
@@ -223,7 +227,7 @@ export async function openBattle(ctx) {
     async combo(g) {
       const [px, py] = pCenter(), vx = arena.clientWidth * 0.78, vy = arena.clientHeight * 0.5;
       for (let i = 0; i < 3; i++) {
-        const m = add(img("dumpling", "", esc(ctx.emoji)), "bt-mini", `left:${vx}px;top:${vy}px`);
+        const m = add(img("mini", "", img("dumpling", "", esc(ctx.emoji))), "bt-mini", `left:${vx}px;top:${vy}px`);
         if (!reduce()) anim(m, [{ transform: "none" }, { transform: `translate(${px - vx}px,${py - vy - 20 + i * 14}px) rotate(-200deg)`, opacity: 1 }, { transform: `translate(${px - vx}px,${py - vy}px) scale(.2)`, opacity: 0 }], { duration: 320, delay: i * 110 });
         gone(m, 460 + i * 110);
         setTimeout(() => { flinch(-8); beep(660 + i * 120, 0.05); }, 300 + i * 110);
@@ -231,6 +235,7 @@ export async function openBattle(ctx) {
     },
     async counter(g, pw) {
       const t = add("COUNTER!", "bt-big", "color:var(--c)");
+      if (typeof art.tag === "string") { const tg = add(img("tag"), "bt-tag"); anim(tg, reduce() ? [{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }] : [{ transform: "translate(-50%,-50%) rotateY(0) scale(.6)", opacity: 0 }, { transform: "translate(-50%,-50%) rotateY(540deg) scale(1.2)", opacity: 1, offset: 0.6 }, { transform: "translate(-50%,-50%) rotateY(720deg) scale(1)", opacity: 0 }], 1100); gone(tg, 1150); } // 만원의 기적: 가격표가 뒤집힌다
       if (!reduce()) { anim(arena, [{ filter: "none" }, { filter: "saturate(.3) contrast(1.3)" }, { filter: "none" }], { duration: 700, fill: "none" }); anim(t, [{ transform: "translate(-50%,-50%) skewX(-12deg) scale(3)", opacity: 0 }, { transform: "translate(-50%,-50%) skewX(-12deg) scale(1)", opacity: 1, offset: 0.4 }, { transform: "translate(-50%,-50%) skewX(-12deg) scale(1)", opacity: 1, offset: 0.85 }, { opacity: 0 }], { duration: 1100, easing: "cubic-bezier(.2,.8,.2,1)" }); anim(V, [{ transform: "none" }, { transform: "translateX(-40px) scale(1.15)" }, { transform: "none" }], { duration: 700, fill: "none" }); }
       else anim(t, [{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }], 900);
       gone(t, 1150); await sleep(reduce() ? 0 : 420); shake(4 + 6 * pw);
@@ -252,6 +257,29 @@ export async function openBattle(ctx) {
         gone(el, 1700);
       }
       arena.classList.add("warm"); setTimeout(() => !s.ko && arena.classList.remove("warm"), 1600);
+    },
+    async wave(g, pw) { // 진국 해일: 뽀얀 국물 파도가 아래에서 화면을 덮었다 빠진다
+      const w = add("", "bt-wave");
+      anim(w, reduce() ? [{ opacity: 0 }, { opacity: 0.9 }, { opacity: 0 }] : [{ transform: "translateY(100%)" }, { transform: `translateY(${18 - 30 * pw}%)`, offset: 0.45 }, { transform: `translateY(${22 - 30 * pw}%)`, offset: 0.6 }, { transform: "translateY(105%)" }], { duration: 1300, easing: "ease-in-out" });
+      gone(w, 1350); setTimeout(() => shake(4 + 5 * pw, 320), 450);
+    },
+    async rain(g, pw) { // 머릿고기 폭격: 하늘에서 쏟아진다
+      const W = arena.clientWidth, H = arena.clientHeight, n = Math.round(6 + 8 * pw);
+      for (let i = 0; i < n; i++) {
+        const x = W * (0.05 + 0.6 * Math.random()), el = add(img("rain", "", "🥩"), "bt-mini bt-drop", `left:${x}px;top:-80px`);
+        anim(el, reduce() ? [{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }] : [{ transform: `translateY(0) rotate(${Math.random() * 90}deg)` }, { transform: `translateY(${H * (0.55 + 0.3 * Math.random())}px) rotate(${200 + Math.random() * 300}deg)`, offset: 0.8 }, { transform: `translateY(${H * 0.8}px) rotate(400deg)`, opacity: 0 }], { duration: 900, delay: i * 70, easing: "ease-in" });
+        gone(el, 1000 + i * 70);
+      }
+      setTimeout(() => shake(5, 300), 650);
+    },
+    async cubes(g, pw) { // 깍두기 큐브 연사: 빌런 쪽에서 큐브가 줄지어 날아온다
+      const [px, py] = pCenter(), vx = arena.clientWidth * 0.75, vy = arena.clientHeight * 0.45, n = Math.round(3 + 3 * pw);
+      for (let i = 0; i < n; i++) {
+        const el = add(img("cube", "", '<i class="bt-cube"></i>'), "bt-mini bt-cubes", `left:${vx}px;top:${vy + (i % 3 - 1) * 22}px`);
+        if (!reduce()) anim(el, [{ transform: "none" }, { transform: `translate(${px - vx}px,${py - vy - (i % 3 - 1) * 22}px) rotate(${360 + i * 90}deg)`, opacity: 1 }, { transform: `translate(${px - vx - 20}px,${py - vy}px) scale(.3)`, opacity: 0 }], { duration: 260, delay: i * 85, easing: "linear" });
+        gone(el, 400 + i * 85);
+        setTimeout(() => { flinch(-6); beep(880 - i * 40, 0.04); }, 240 + i * 85);
+      }
     },
     async bag() {
       const b = add(img("bag", "", "🛍️"), "bt-bag", "right:-20%");

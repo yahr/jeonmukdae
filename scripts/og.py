@@ -54,7 +54,8 @@ card(ROOT / site["ogImage"], "INSERT COIN", site["name"], "매달 한 부문, �
 for dv in divisions:
     month = f'{int(dv["season"]["from"][5:7])}월 ' if dv.get("season") else ""
     n = sum(1 for x in dojos if x["division"] == dv["slug"])
-    card(ROOT / f'assets/og/division-{dv["slug"]}.png', f"{month}부문 개막", f'{dv["name"]} 부문', f"도장 {n}곳 오픈", "▶ PRESS START")
+    no = f'제{dv["season"]["n"]}회 · ' if dv.get("season") else ""
+    card(ROOT / f'assets/og/division-{dv["slug"]}.png', f"{no}{month}부문 개막", f'{dv["name"]} 부문', f"도장 {n}곳 오픈" if n else "공식 도장 준비 중 · 주변 매장 대결", "▶ PRESS START")
 for x in dojos:
     dv = next(v for v in divisions if v["slug"] == x["division"])
     name = " ".join(p for p in [x["name"], x.get("branch")] if p)

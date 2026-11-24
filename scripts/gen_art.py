@@ -36,6 +36,8 @@ ART = {
 VILLAIN_PROMPT = (ROOT / "scripts/prompts/villain-jjinmandu.txt")
 SHEETS = {
     "villain-sheet": (("jjinmandu", "villain"), ["idle", "taunt", "special", "win"], lambda: VILLAIN_PROMPT.read_text()),
+    "villain-sundaeguk": (("sundaeguk", "villain"), ["idle", "taunt", "special", "win"], lambda: (ROOT / "scripts/prompts/villain-sundaeguk.txt").read_text()),
+    "props-sundaeguk": (("sundaeguk", "props"), ["mini", "rain", "cube", "tag"], lambda: (ROOT / "scripts/prompts/props-sundaeguk.txt").read_text()),
 }
 
 
@@ -61,8 +63,12 @@ def save_sheet(name, im, manifest):
     node = manifest
     for k in where[:-1]:
         node = node.setdefault(k, {})
-    node[where[-1]] = files
-    if name == "villain-sheet":  # 프롬프트는 왼쪽을 요구하지만 모델이 손짓을 오른쪽에 그리는 일이 많다(2026-11-24 찐만두 2회 실패).
+    if where[-1] == "props":  # 소품은 부문 바로 아래 글자 키로(대결 화면 img() 가 쓴다): mini 연타 투사체, rain 쏟아지는 것, cube 연사, tag 가격표
+        for pose, f in files.items():
+            node[pose] = f["src"]
+    else:
+        node[where[-1]] = files
+    if name.startswith("villain-"):  # 프롬프트는 왼쪽을 요구하지만 모델이 손짓을 오른쪽에 그리는 일이 많다(2026-11-24 찐만두 2회 실패).
         node["facing"] = "left"     # 저장한 뒤 그림을 눈으로 보고, 오른쪽을 보면 manifest 를 "right" 로 고친다(화면이 뒤집음)
 
 

@@ -6,7 +6,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test scripts/validate.test.mjs scripts/battle.test.mjs scripts/sprite.test.mjs",
+    "test": "node --test scripts/validate.test.mjs scripts/battle.test.mjs scripts/sprite.test.mjs scripts/game.test.mjs",
     "og": "python3 scripts/og.py",
     "art": "python3 scripts/gen_art.py",
     "add-dojo": "node scripts/add-dojo.mjs",

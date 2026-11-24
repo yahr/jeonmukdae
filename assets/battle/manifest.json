@@ -27,5 +27,34 @@
     "steamer": "jjinmandu-steamer.webp",
     "bag": "jjinmandu-bag.webp",
     "ko": "jjinmandu-ko.webp"
+  },
+  "sundaeguk": {
+    "villain": {
+      "idle": {
+        "src": "sundaeguk-villain-idle.webp",
+        "w": 95,
+        "h": 102
+      },
+      "taunt": {
+        "src": "sundaeguk-villain-taunt.webp",
+        "w": 109,
+        "h": 105
+      },
+      "special": {
+        "src": "sundaeguk-villain-special.webp",
+        "w": 110,
+        "h": 109
+      },
+      "win": {
+        "src": "sundaeguk-villain-win.webp",
+        "w": 115,
+        "h": 104
+      }
+    },
+    "facing": "left",
+    "mini": "sundaeguk-props-mini.webp",
+    "rain": "sundaeguk-props-rain.webp",
+    "cube": "sundaeguk-props-cube.webp",
+    "tag": "sundaeguk-props-tag.webp"
   }
 }

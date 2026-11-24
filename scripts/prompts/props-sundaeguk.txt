@@ -1,0 +1,9 @@
+Pixel art item sprites for a retro 2D arcade game. A 2x2 grid of four equal square cells, one item per cell, each item centered in its cell with empty margin, nothing crossing into another cell. Crisp hand-placed pixels, 1-pixel dark navy outline, 4 to 5 shading steps per color, soft highlights, appetizing and cute.
+
+Cell 1 (top-left): one thick round slice of Korean sundae (blood sausage with glass noodles), glossy, slightly tilted.
+Cell 2 (top-right): a small fan of three thin slices of boiled pork head meat (meoritgogi), juicy and tender.
+Cell 3 (bottom-left): one cube of kkakdugi (red radish kimchi), bright red-orange chili coating with a glossy highlight.
+Cell 4 (bottom-right): a blank paper price tag with a string loop and a little gold star sticker, completely blank with no writing.
+
+Background: one flat solid pure magenta color #FF00FF filling every cell, no floor, no shadows, no gradient, no grid lines.
+No text, no letters, no numbers, no watermark.
