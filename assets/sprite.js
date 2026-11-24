@@ -9,9 +9,10 @@ function keyOut(px, w, h) {
   const bg = new Uint8Array(w * h), q = [];
   const near = (a, b) => Math.max(Math.abs(px[a * 4] - px[b * 4]), Math.abs(px[a * 4 + 1] - px[b * 4 + 1]), Math.abs(px[a * 4 + 2] - px[b * 4 + 2])) <= 28;
   const luma = (i) => px[i * 4] * 0.3 + px[i * 4 + 1] * 0.59 + px[i * 4 + 2] * 0.11;
-  for (let x = 0; x < w; x++) q.push(x, (h - 1) * w + x);
-  for (let y = 0; y < h; y++) q.push(y * w, y * w + w - 1);
-  for (const i of q) bg[i] = 1;
+  const edge = [];
+  for (let x = 0; x < w; x++) edge.push(x, (h - 1) * w + x);
+  for (let y = 0; y < h; y++) edge.push(y * w, y * w + w - 1);
+  for (const i of edge) if (!bg[i] && isMag(px[i * 4], px[i * 4 + 1], px[i * 4 + 2])) { bg[i] = 1; q.push(i); } // 그림이 칸 끝에 닿아도 그 점은 시작점이 아니다
   while (q.length) {
     const i = q.pop(), x = i % w;
     for (const n of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]) {
@@ -89,9 +90,10 @@ export function playerPrompt(av = {}, lvl = 0, image = null) {
     : image === "ref" ? "\n\nThe attached sprite is this same character: keep exactly the same face, hair and accessories, and only apply the description below (such as the belt color)." : "";
   return `Pixel art character sprite sheet for a retro 2D arcade RPG. A 3x3 grid of nine equal square cells, one pose per cell, the SAME character in every cell (identical face, hair, outfit, colors, proportions), each pose centered in its cell with empty margin, nothing crossing into another cell.
 
-Art style: late-1990s Korean 2D MMORPG sprite quality. Chibi proportions about 2.5 heads tall with a big head, full body from head to feet visible. Crisp hand-placed pixels, 1-pixel dark outline around the whole figure, 4 to 5 shading steps per color, visible cloth folds on the uniform, individual hair strand clusters with highlights. Three-quarter view facing right, toward the right side of the frame, in every cell. Each figure about 80 pixels tall in pixel scale.${ref}
+Art style: late-1990s Korean 2D MMORPG sprite quality. Chibi proportions about 2.5 heads tall with a big head, full body from head to feet visible. Crisp hand-placed pixels, 1-pixel dark outline around the whole figure, 4 to 5 shading steps per color, visible cloth folds on the uniform, individual hair strand clusters with highlights. Three-quarter view facing right, toward the right side of the frame, in every cell. Each figure about 80 pixels tall in pixel scale.
+Framing (very important): every cell shows the ENTIRE body from the top of the head to the soles of the shoes, never cropped at the chest, waist or knees, even if a reference image shows only the face. Standing figures occupy about 85% of the cell height with empty margin above and below; lying figures fit fully inside the cell width.${ref}
 
-Character: ${photo ? `a cheerful food-challenge fighter based on the person in the photo. Wears the outfit described above, with a ${BELT_T[lvl] || BELT_T[0]} cloth belt tied at the waist over the clothes, knotted with two hanging ends` : `a cheerful young Korean food-challenge fighter. Skin tone: ${SKIN_T[av.skin] || SKIN_T[0]}. ${hair[0].toUpperCase() + hair.slice(1)}. Wears a cream-white martial arts uniform (dobok) with a crossed V-neck collar, loose sleeves and loose trousers, and a ${BELT_T[lvl] || BELT_T[0]} belt tied in a knot at the waist with two hanging ends. Simple dark slip-on shoes`}. Holds a pair of wooden chopsticks.${photo ? "" : ACC_T[av.acc] || ""}${lvl >= 5 ? " A small golden crown floats above the head." : ""}
+Character: ${photo ? `a cheerful food-challenge fighter based on the person in the photo. Wears the outfit described above, with a ${BELT_T[lvl] || BELT_T[0]} cloth belt tied at the waist over the clothes, knotted with two hanging ends, clearly visible in every cell` : `a cheerful young Korean food-challenge fighter. Skin tone: ${SKIN_T[av.skin] || SKIN_T[0]}. ${hair[0].toUpperCase() + hair.slice(1)}. Wears a cream-white martial arts uniform (dobok) with a crossed V-neck collar, loose sleeves and loose trousers, and a ${BELT_T[lvl] || BELT_T[0]} belt tied in a knot at the waist with two hanging ends, clearly visible in every cell. Simple dark slip-on shoes`}. Holds a pair of wooden chopsticks.${photo ? "" : ACC_T[av.acc] || ""}${lvl >= 5 ? " A small golden crown floats above the head." : ""}
 
 Cells in reading order (left to right, top row first):
 Cell 1 idle: standing ready pose, excited eager grin, sparkling eyes, chopsticks raised.

@@ -68,3 +68,20 @@ test("사진이면 찍힌 만큼 옷을 반영하고 허리에 띠, 사진 없�
   assert.match(rnd, /dobok/);
   assert.doesNotMatch(rnd, /photo/);
 });
+
+test("그림이 칸 가장자리에 닿아도 바탕으로 지우지 않는다", () => {
+  const W = 32, px = new Uint8ClampedArray(W * W * 4);
+  for (let i = 0; i < W * W; i++) px.set([255, 0, 255, 255], i * 4);
+  for (let y = 8; y < 16; y++) for (let x = 4; x < 12; x++) px.set([200, 30, 40, 255], (y * W + x) * 4); // 왼쪽 위 칸 아래 끝에 닿는 빨간 셔츠
+  const [f] = sheetFrames(px, W, W, { scale: 1, inset: 0 });
+  assert.deepEqual([f.w, f.h], [8, 8]);
+  for (let i = 3; i < f.data.length; i += 4) assert.equal(f.data[i], 255);
+});
+
+test("모든 칸 전신(잘림 금지)·띠가 모든 칸에 보이게", () => {
+  for (const img of [null, "photo"]) {
+    const t = playerPrompt({ skin: 0, hair: "short", hairc: 0, acc: "none" }, 1, img);
+    assert.match(t, /ENTIRE body/);
+    assert.match(t, /yellow[^.]*belt[^.]*clearly visible in every cell/);
+  }
+});
